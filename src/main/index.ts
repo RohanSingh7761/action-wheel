@@ -17,7 +17,7 @@ import { existsSync } from 'fs'
 import { is } from '@electron-toolkit/utils'
 import { WebSocketServer, WebSocket } from 'ws'
 import sharp from 'sharp'
-import { spawn, type ChildProcess } from 'child_process'
+import { spawn, spawnSync, type ChildProcess } from 'child_process'
 
 import {
   IPC,
@@ -388,13 +388,13 @@ function startHookDaemon(): void {
 
   if (finalPath) {
     try {
-      // Clean up any previously orphaned drag-listener PowerShell processes
+      // Clean up any previously orphaned drag-listener PowerShell processes synchronously
       try {
-        spawn('powershell.exe', [
+        spawnSync('powershell.exe', [
           '-NoProfile',
           '-Command',
           "Get-Process powershell -ErrorAction SilentlyContinue | ForEach-Object { try { $c = (Get-CimInstance Win32_Process -Filter \"ProcessId = $($_.Id)\").CommandLine; if ($c -like '*drag-listener.ps1*') { Stop-Process -Id $_.Id -Force } } catch {} }"
-        ])
+        ], { timeout: 3000 })
       } catch {}
 
       hookProcess = spawn('powershell.exe', [
@@ -406,6 +406,10 @@ function startHookDaemon(): void {
 
       hookProcess.on('error', (err) => {
         console.warn('[listener] Process error:', err.message)
+      })
+
+      hookProcess.on('exit', (code, signal) => {
+        console.log(`[listener] Process exited with code ${code}, signal ${signal}`)
       })
 
       hookProcess.stdout?.on('data', (d) => console.log(`[listener] ${d.toString().trim()}`))

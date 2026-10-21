@@ -34,16 +34,15 @@ public class DragListener {
         recvThread.IsBackground = true;
         recvThread.Start();
 
-        // Polling loop for Drag (Left Click) + Tab and hotkey dismissals
+        // Polling loop for Drag / Tab detection and hotkey dismissals
         while (true) {
-            short lBtn = GetAsyncKeyState(0x01); // VK_LBUTTON
-            bool isMouseDown = (lBtn & 0x8000) != 0;
+            short tab = GetAsyncKeyState(0x09); // VK_TAB
+            bool isTabDown = ((tab & 0x8000) != 0) || ((tab & 0x01) != 0);
 
             if (_isWheelActive) {
                 // Wheel is active: check if Esc or Tab is pressed to dismiss
                 short esc = GetAsyncKeyState(0x1B); // VK_ESCAPE
-                short tab = GetAsyncKeyState(0x09); // VK_TAB
-                if ((esc & 0x8000) != 0 || (tab & 0x8000) != 0) {
+                if (((esc & 0x8000) != 0) || isTabDown) {
                     Console.WriteLine("[listener] Dismiss hotkey (Esc/Tab) detected");
                     SendDismiss();
                     _isWheelActive = false;
@@ -51,37 +50,32 @@ public class DragListener {
                         Thread.Sleep(20);
                     }
                 }
-            }
+            } else if (isTabDown) {
+                short lBtn = GetAsyncKeyState(0x01); // VK_LBUTTON
+                short rBtn = GetAsyncKeyState(0x02); // VK_RBUTTON
+                bool isMouseDown = ((lBtn & 0x8000) != 0) || ((rBtn & 0x8000) != 0);
 
-            if (isMouseDown && !_isWheelActive) {
-                short tab = GetAsyncKeyState(0x09); // VK_TAB
-                bool isTabDown = (tab & 0x8000) != 0;
+                POINT pt;
+                GetCursorPos(out pt);
+                Console.WriteLine("[listener] Tab detected at (" + pt.X + ", " + pt.Y + "), mouseHeld=" + isMouseDown);
 
-                if (isTabDown) {
-                    POINT pt;
-                    GetCursorPos(out pt);
-                    Console.WriteLine("[listener] Drag + Tab detected at (" + pt.X + ", " + pt.Y + ")");
+                string filePath = GetSelectedImagePath();
 
-                    string filePath = GetSelectedImagePath();
-
-                    if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath)) {
-                        Console.WriteLine("[listener] Triggering wheel for: " + filePath);
-                        SendTrigger(filePath, pt.X, pt.Y);
-                        _isWheelActive = true;
-                    } else {
-                        Console.WriteLine("[listener] Drag + Tab detected, but no image item was focused/selected.");
-                    }
-
-                    // Wait until Tab key is released so we don't immediately trigger dismiss
-                    while ((GetAsyncKeyState(0x09) & 0x8000) != 0) {
-                        Thread.Sleep(15);
-                    }
+                if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath)) {
+                    Console.WriteLine("[listener] Triggering wheel for: " + filePath);
+                    SendTrigger(filePath, pt.X, pt.Y);
+                    _isWheelActive = true;
                 } else {
-                    Thread.Sleep(5);
+                    Console.WriteLine("[listener] Tab detected, but no image item was focused/selected.");
                 }
-            } else {
-                Thread.Sleep(15);
+
+                // Debounce Tab key release
+                while (((GetAsyncKeyState(0x09) & 0x8000) != 0)) {
+                    Thread.Sleep(15);
+                }
             }
+
+            Thread.Sleep(10);
         }
     }
 
