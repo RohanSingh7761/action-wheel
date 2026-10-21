@@ -305,24 +305,31 @@ function startHookServer(): void {
 let hookProcess: ChildProcess | null = null
 
 function startHookDaemon(): void {
-  const hookExe = join(__dirname, '../../hook-daemon/drag-hook.exe')
-  const altExe = join(app.getAppPath(), 'hook-daemon/drag-hook.exe')
-  const finalPath = existsSync(hookExe) ? hookExe : existsSync(altExe) ? altExe : null
+  const scriptPath = join(__dirname, '../../scripts/drag-listener.ps1')
+  const altPath = join(app.getAppPath(), 'scripts/drag-listener.ps1')
+  const finalPath = existsSync(scriptPath) ? scriptPath : existsSync(altPath) ? altPath : null
 
   if (finalPath) {
     try {
-      hookProcess = spawn(`"${finalPath}"`, [], { shell: true, windowsHide: true })
+      hookProcess = spawn('powershell.exe', [
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-WindowStyle', 'Hidden',
+        '-File', finalPath
+      ], { windowsHide: true })
+
       hookProcess.on('error', (err) => {
-        console.warn('[daemon] Hook process blocked by antivirus or missing:', err.message)
+        console.warn('[listener] Process error:', err.message)
       })
-      hookProcess.stdout?.on('data', (d) => console.log(`[daemon] ${d.toString().trim()}`))
-      hookProcess.stderr?.on('data', (d) => console.error(`[daemon error] ${d.toString().trim()}`))
-      console.log(`[daemon] Spawned native drag-hook.exe (PID: ${hookProcess.pid})`)
+
+      hookProcess.stdout?.on('data', (d) => console.log(`[listener] ${d.toString().trim()}`))
+      hookProcess.stderr?.on('data', (d) => console.error(`[listener error] ${d.toString().trim()}`))
+      console.log(`[listener] Drag + Tab background listener active (PID: ${hookProcess.pid})`)
     } catch (e) {
-      console.warn('[daemon] Could not start native drag-hook.exe:', e)
+      console.warn('[listener] Could not start listener:', e)
     }
   } else {
-    console.warn('[daemon] Native drag-hook.exe not found at', hookExe)
+    console.warn('[listener] scripts/drag-listener.ps1 not found at', scriptPath)
   }
 }
 
@@ -333,23 +340,19 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false))
   session.defaultSession.setPermissionCheckHandler(() => false)
 
-  // Global hotkey: Ctrl+Shift+W immediately opens the wheel at cursor!
-  const shortcutOk = globalShortcut.register('CommandOrControl+Shift+W', () => {
+  // Global hotkey: Ctrl+Shift+W as secondary quick trigger
+  globalShortcut.register('CommandOrControl+Shift+W', () => {
     console.log('[shortcut] Ctrl+Shift+W triggered')
     triggerDemoWheel()
   })
-  console.log(`[shortcut] Global shortcut Ctrl+Shift+W registered: ${shortcutOk}`)
 
   createTraySafe()
 
-  // 1. Create transparent wheel overlay
+  // 1. Create transparent wheel overlay (hidden until Tab is pressed while dragging)
   const overlayWin = createOverlayWindow()
 
-  // 2. Create options popup window
+  // 2. Create options popup window (hidden until an action needing params is selected)
   createPopupWindow(overlayWin)
-
-  // 3. Create Hub control center window
-  createHubWindow()
 
   registerIpcHandlers()
   startHookServer()
