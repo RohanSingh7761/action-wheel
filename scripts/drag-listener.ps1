@@ -26,22 +26,13 @@ public class DragListener {
     public static void Run() {
         Console.WriteLine("[listener] In-memory Drag + Tab listener started.");
 
-        // WebSocket connection manager
-        Task.Run(async () => {
-            while (true) {
-                try {
-                    if (_ws == null || _ws.State != WebSocketState.Open) {
-                        _ws = new ClientWebSocket();
-                        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3))) {
-                            await _ws.ConnectAsync(_serverUri, cts.Token);
-                            Console.WriteLine("[listener] Connected to Action Wheel at " + _serverUri);
-                            Task.Run(ReceiveLoop);
-                        }
-                    }
-                } catch { }
-                await Task.Delay(1500);
-            }
-        });
+        Thread connThread = new Thread(ConnectionLoop);
+        connThread.IsBackground = true;
+        connThread.Start();
+
+        Thread recvThread = new Thread(ReceiveLoop);
+        recvThread.IsBackground = true;
+        recvThread.Start();
 
         // Polling loop for Drag (Left Click) + Tab and hotkey dismissals
         while (true) {
@@ -94,47 +85,68 @@ public class DragListener {
         }
     }
 
-    private static async Task ReceiveLoop() {
+    private static void ConnectionLoop() {
+        while (true) {
+            try {
+                if (_ws == null || _ws.State != WebSocketState.Open) {
+                    _ws = new ClientWebSocket();
+                    using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3))) {
+                        _ws.ConnectAsync(_serverUri, cts.Token).Wait();
+                        Console.WriteLine("[listener] Connected to Action Wheel at " + _serverUri);
+                    }
+                }
+            } catch { }
+            Thread.Sleep(1500);
+        }
+    }
+
+    private static void ReceiveLoop() {
         var buffer = new byte[1024];
         while (true) {
             try {
                 if (_ws != null && _ws.State == WebSocketState.Open) {
-                    var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    if (result.MessageType == WebSocketMessageType.Close) break;
+                    var seg = new ArraySegment<byte>(buffer);
+                    var task = _ws.ReceiveAsync(seg, CancellationToken.None);
+                    task.Wait();
+                    var result = task.Result;
+                    if (result.MessageType == WebSocketMessageType.Close) {
+                        Thread.Sleep(500);
+                        continue;
+                    }
                     string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    if (msg.Contains("WHEEL_CLOSED")) {
+                    if (msg.IndexOf("WHEEL_CLOSED", StringComparison.OrdinalIgnoreCase) >= 0) {
                         _isWheelActive = false;
-                    } else if (msg.Contains("WHEEL_OPENED")) {
+                    } else if (msg.IndexOf("WHEEL_OPENED", StringComparison.OrdinalIgnoreCase) >= 0) {
                         _isWheelActive = true;
                     }
                 } else {
-                    await Task.Delay(500);
+                    Thread.Sleep(500);
                 }
             } catch {
-                await Task.Delay(1000);
+                Thread.Sleep(1000);
             }
         }
     }
 
-    private static async void SendTrigger(string filePath, int x, int y) {
+    private static void SendTrigger(string filePath, int x, int y) {
         try {
             if (_ws != null && _ws.State == WebSocketState.Open) {
                 string cleanPath = filePath.Replace("\\", "\\\\").Replace("\"", "\\\"");
                 string json = string.Format("{{\"type\":\"DRAG_TAB\",\"filePath\":\"{0}\",\"cursorX\":{1},\"cursorY\":{2}}}", cleanPath, x, y);
                 byte[] bytes = Encoding.UTF8.GetBytes(json);
-                await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None).Wait();
             }
         } catch (Exception ex) {
             Console.WriteLine("[listener] Send error: " + ex.Message);
         }
     }
 
-    private static async void SendDismiss() {
+    private static void SendDismiss() {
         try {
             if (_ws != null && _ws.State == WebSocketState.Open) {
                 string json = "{\"type\":\"DISMISS\"}";
                 byte[] bytes = Encoding.UTF8.GetBytes(json);
-                await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None).Wait();
             }
         } catch { }
     }
