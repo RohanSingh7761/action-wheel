@@ -75,15 +75,12 @@ export default function ActionWheel({
       const api = (window as any).overlayAPI
       if (!api) return
       try {
-        const res = await api.selectAction({ action, filePath })
-        if (res?.needsParams) {
-          onDismiss()
-        }
+        await api.selectAction({ action, filePath })
       } catch (err) {
         console.error('selectAction error:', err)
       }
     },
-    [isProcessing, onDismiss]
+    [isProcessing]
   )
 
   // Escape or Tab key dismisses

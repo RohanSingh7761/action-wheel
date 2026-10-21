@@ -1,10 +1,10 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
 let popupWin: BrowserWindow | null = null
 
-export function createPopupWindow(parentWin: BrowserWindow): BrowserWindow {
+export function createPopupWindow(): BrowserWindow {
   popupWin = new BrowserWindow({
     width: 380,
     height: 280,
@@ -16,7 +16,6 @@ export function createPopupWindow(parentWin: BrowserWindow): BrowserWindow {
     skipTaskbar: true,
     show: false,
     hasShadow: false,
-    parent: parentWin,
     webPreferences: {
       preload: join(__dirname, '../preload/popup.js'),
       sandbox: false,
@@ -43,9 +42,13 @@ export function getPopupWindow(): BrowserWindow | null {
 export function showPopup(x?: number, y?: number): void {
   if (!popupWin) return
   if (x !== undefined && y !== undefined) {
-    popupWin.setPosition(Math.round(x - 190), Math.round(y - 140))
+    const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
+    const targetX = Math.max(20, Math.min(Math.round(x - 190), screenW - 400))
+    const targetY = Math.max(20, Math.min(Math.round(y - 140), screenH - 300))
+    popupWin.setPosition(targetX, targetY)
   }
-  popupWin.showInactive()
+  popupWin.setAlwaysOnTop(true, 'screen-saver')
+  popupWin.show()
   popupWin.focus()
 }
 

@@ -41,10 +41,6 @@ export async function processAction(
       return result
     }
 
-    case 'edit': {
-      await shell.openPath(filePath)
-      return { outputPath: filePath }
-    }
 
     case 'copy': {
       // Handled in main/index.ts via clipboard API

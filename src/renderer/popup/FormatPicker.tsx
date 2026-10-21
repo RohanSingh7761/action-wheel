@@ -7,8 +7,7 @@ const FORMATS = [
   { value: 'png', label: 'PNG', desc: 'Lossless' },
   { value: 'jpg', label: 'JPG', desc: 'Universal' },
   { value: 'avif', label: 'AVIF', desc: 'Next-gen' },
-  { value: 'tiff', label: 'TIFF', desc: 'High quality' },
-  { value: 'bmp', label: 'BMP', desc: 'Uncompressed' }
+  { value: 'tiff', label: 'TIFF', desc: 'High quality' }
 ] as const
 
 type Format = (typeof FORMATS)[number]['value']

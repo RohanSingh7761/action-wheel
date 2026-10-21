@@ -7,7 +7,6 @@ export type ActionId =
   | 'convert-format'
   | 'crop'
   | 'compress'
-  | 'edit'
   | 'copy'
   | 'more'
 
@@ -52,14 +51,6 @@ export const ACTIONS: ActionMeta[] = [
     color: 'rgba(167,139,250,0.85)',
     accentColor: '#a78bfa',
     needsParams: true
-  },
-  {
-    id: 'edit',
-    label: 'Edit',
-    icon: '🎨',
-    color: 'rgba(251,191,36,0.85)',
-    accentColor: '#fbbf24',
-    needsParams: false
   },
   {
     id: 'copy',

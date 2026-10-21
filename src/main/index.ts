@@ -178,21 +178,17 @@ function registerIpcHandlers(): void {
       try {
         const img = nativeImage.createFromPath(filePath)
         clipboard.writeImage(img)
-        const overlayWin = getOverlayWindow()
-        overlayWin?.webContents.send(IPC.OVERLAY_DONE, {
-          action,
-          outputPath: filePath,
-          sizeInfo: 'Copied to clipboard'
-        })
+        hideWheel()
       } catch (err) {
-        const overlayWin = getOverlayWindow()
-        overlayWin?.webContents.send(IPC.OVERLAY_ERROR, { message: String(err) })
+        hideWheel()
+        console.error('[copy] error:', err)
       }
       return { needsParams: false }
     }
 
     if (meta?.needsParams) {
       pendingAction = action as ActionId
+      currentFilePath = filePath
 
       // Immediately hide the wheel overlay so it doesn't linger behind the popup
       hideOverlay()
@@ -203,6 +199,7 @@ function registerIpcHandlers(): void {
       if (popupWin) {
         const initPayload: PopupInitPayload = { action, filePath }
         showPopup(currentCursorX, currentCursorY)
+        popupWin.webContents.send(IPC.POPUP_INIT, initPayload)
         setTimeout(() => {
           popupWin.webContents.send(IPC.POPUP_INIT, initPayload)
         }, 150)
@@ -357,6 +354,15 @@ function startHookDaemon(): void {
 
   if (finalPath) {
     try {
+      // Clean up any previously orphaned drag-listener PowerShell processes
+      try {
+        spawn('powershell.exe', [
+          '-NoProfile',
+          '-Command',
+          "Get-Process powershell -ErrorAction SilentlyContinue | ForEach-Object { try { $c = (Get-CimInstance Win32_Process -Filter \"ProcessId = $($_.Id)\").CommandLine; if ($c -like '*drag-listener.ps1*') { Stop-Process -Id $_.Id -Force } } catch {} }"
+        ])
+      } catch {}
+
       hookProcess = spawn('powershell.exe', [
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
@@ -400,10 +406,10 @@ app.whenReady().then(async () => {
   createTraySafe()
 
   // 1. Create transparent wheel overlay (hidden until Tab is pressed while dragging)
-  const overlayWin = createOverlayWindow()
+  createOverlayWindow()
 
   // 2. Create options popup window (hidden until an action needing params is selected)
-  createPopupWindow(overlayWin)
+  createPopupWindow()
 
   registerIpcHandlers()
   startHookServer()
