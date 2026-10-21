@@ -99,7 +99,6 @@ function createTraySafe(): void {
       { label: '🌀 Action Wheel', enabled: false },
       { type: 'separator' },
       { label: 'Open Hub', click: () => showHub() },
-      { label: 'Test Wheel (Ctrl+Shift+W)', click: () => triggerDemoWheel() },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() }
     ])
@@ -412,12 +411,6 @@ app.whenReady().then(async () => {
   // Block any browser permission dialogs (geolocation, camera, etc.)
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false))
   session.defaultSession.setPermissionCheckHandler(() => false)
-
-  // Global hotkey: Ctrl+Shift+W as secondary quick trigger
-  globalShortcut.register('CommandOrControl+Shift+W', () => {
-    console.log('[shortcut] Ctrl+Shift+W triggered')
-    triggerDemoWheel()
-  })
 
   createTraySafe()
 

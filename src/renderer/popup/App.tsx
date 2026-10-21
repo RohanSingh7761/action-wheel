@@ -79,7 +79,7 @@ export default function App(): React.ReactElement {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-5">
           {initData.action === 'convert-format' && (
             <FormatPicker filePath={initData.filePath} />
           )}

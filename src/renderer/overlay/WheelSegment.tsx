@@ -23,17 +23,15 @@ export default function WheelSegment({
   isHovered,
   isProcessing,
   onHover,
-  onLeave,
-  onClick
-}: WheelSegmentProps): React.ReactElement {
-  // Parse the accent color to extract rgba values for glass effect
+  onLeave
+}: Omit<WheelSegmentProps, 'onClick'>): React.ReactElement {
   const baseColor = isHovered
-    ? action.color.replace(/[\d.]+\)$/, '0.92)')
-    : action.color.replace(/[\d.]+\)$/, '0.55)')
+    ? 'rgba(255, 255, 255, 0.18)'
+    : 'rgba(18, 20, 26, 0.78)'
 
   const borderColor = isHovered
-    ? 'rgba(255,255,255,0.5)'
-    : 'rgba(255,255,255,0.15)'
+    ? 'rgba(255, 255, 255, 0.65)'
+    : 'rgba(255, 255, 255, 0.14)'
 
   return (
     <motion.g
@@ -43,7 +41,7 @@ export default function WheelSegment({
         type: 'spring',
         stiffness: 500,
         damping: 30,
-        delay: index * 0.025
+        delay: index * 0.02
       }}
       style={{ transformOrigin: '0px 0px', transformBox: 'fill-box' }}
     >
@@ -53,11 +51,11 @@ export default function WheelSegment({
         fill={baseColor}
         stroke={borderColor}
         strokeWidth={isHovered ? 1.5 : 1}
-        style={{ cursor: 'pointer', backdropFilter: 'blur(20px)' }}
+        style={{ cursor: 'pointer', backdropFilter: 'blur(28px)' }}
         animate={{
-          scale: isHovered ? 1.04 : 1,
+          scale: isHovered ? 1.045 : 1,
           filter: isHovered
-            ? `drop-shadow(0 0 12px ${action.accentColor}88)`
+            ? 'drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))'
             : 'none'
         }}
         transition={{ type: 'spring', stiffness: 600, damping: 35 }}
@@ -70,11 +68,11 @@ export default function WheelSegment({
         <motion.path
           d={path}
           fill="none"
-          stroke={action.accentColor}
+          stroke="rgba(255, 255, 255, 0.75)"
           strokeWidth={2}
-          opacity={0.7}
+          opacity={0.8}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.7 }}
+          animate={{ opacity: 0.8 }}
           exit={{ opacity: 0 }}
           style={{ pointerEvents: 'none' }}
         />
@@ -83,10 +81,10 @@ export default function WheelSegment({
       {/* Icon */}
       <text
         x={labelPos.x}
-        y={labelPos.y - 10}
+        y={labelPos.y - 11}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize="22"
+        fontSize="24"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {action.icon}
@@ -98,10 +96,11 @@ export default function WheelSegment({
         y={labelPos.y + 16}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize="11"
-        fontWeight={isHovered ? '700' : '500'}
-        fill={isHovered ? '#ffffff' : 'rgba(255,255,255,0.85)'}
-        fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        fontSize="11.5"
+        fontWeight={isHovered ? '600' : '500'}
+        letterSpacing="0.01em"
+        fill={isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.75)'}
+        fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {action.label}

@@ -24,40 +24,40 @@ export const ACTIONS: ActionMeta[] = [
     id: 'convert-pdf',
     label: 'To PDF',
     icon: '📄',
-    color: 'rgba(251,113,133,0.85)',
-    accentColor: '#fb7185',
+    color: 'rgba(255, 255, 255, 0.08)',
+    accentColor: '#ffffff',
     needsParams: false
   },
   {
     id: 'convert-format',
     label: 'Convert',
     icon: '🔄',
-    color: 'rgba(96,165,250,0.85)',
-    accentColor: '#60a5fa',
+    color: 'rgba(255, 255, 255, 0.08)',
+    accentColor: '#ffffff',
     needsParams: true
   },
   {
     id: 'crop',
     label: 'Crop',
     icon: '✂️',
-    color: 'rgba(52,211,153,0.85)',
-    accentColor: '#34d399',
+    color: 'rgba(255, 255, 255, 0.08)',
+    accentColor: '#ffffff',
     needsParams: true
   },
   {
     id: 'compress',
     label: 'Compress',
     icon: '🗜️',
-    color: 'rgba(167,139,250,0.85)',
-    accentColor: '#a78bfa',
+    color: 'rgba(255, 255, 255, 0.08)',
+    accentColor: '#ffffff',
     needsParams: true
   },
   {
     id: 'copy',
     label: 'Copy',
     icon: '📋',
-    color: 'rgba(45,212,191,0.85)',
-    accentColor: '#2dd4bf',
+    color: 'rgba(255, 255, 255, 0.08)',
+    accentColor: '#ffffff',
     needsParams: false
   }
 ]

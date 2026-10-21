@@ -260,7 +260,7 @@ export default function ActionWheel({
           style={{
             left: 0,
             right: 0,
-            top: wheelSize + 10,
+            top: wheelSize + 16,
             pointerEvents: 'none'
           }}
         >
@@ -270,11 +270,11 @@ export default function ActionWheel({
               e.stopPropagation()
               onDismiss()
             }}
-            className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium text-white/80 hover:text-white bg-black/50 hover:bg-rose-950/70 border border-white/20 hover:border-rose-500/60 backdrop-blur-xl transition-all cursor-pointer shadow-lg active:scale-95"
+            className="pointer-events-auto flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium text-zinc-300 hover:text-white bg-zinc-950/70 hover:bg-zinc-900/90 border border-white/12 hover:border-white/30 backdrop-blur-2xl transition-all cursor-pointer shadow-2xl active:scale-95"
           >
-            <span className="text-rose-400 font-bold">✕</span>
+            <span className="text-zinc-400 font-bold text-xs">✕</span>
             <span>Cancel</span>
-            <span className="text-[10px] text-white/40 font-mono ml-1">Esc / Tab</span>
+            <span className="text-[10px] text-zinc-500 font-mono ml-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/10">Esc / Tab</span>
           </button>
         </div>
       </motion.div>
