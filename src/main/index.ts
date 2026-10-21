@@ -335,6 +335,11 @@ function startHookDaemon(): void {
 
 // ─── App Lifecycle ─────────────────────────────────────────────────────────────
 
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+}
+
 app.whenReady().then(async () => {
   // Block any browser permission dialogs (geolocation, camera, etc.)
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false))
