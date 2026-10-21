@@ -9,5 +9,7 @@ contextBridge.exposeInMainWorld('popupAPI', {
   },
   confirm: (payload: PopupConfirmPayload): Promise<void> =>
     ipcRenderer.invoke(IPC.POPUP_CONFIRM, payload),
-  cancel: () => ipcRenderer.send(IPC.POPUP_CANCEL)
+  cancel: () => ipcRenderer.send(IPC.POPUP_CANCEL),
+  loadImage: (filePath: string): Promise<{ dataUrl: string; width: number; height: number } | null> =>
+    ipcRenderer.invoke(IPC.IMAGE_LOAD_PREVIEW, filePath)
 })

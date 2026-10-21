@@ -51,14 +51,6 @@ export const ACTIONS: ActionMeta[] = [
     color: '#13151b',
     accentColor: '#ffffff',
     needsParams: true
-  },
-  {
-    id: 'copy',
-    label: 'Copy',
-    icon: 'copy',
-    color: '#13151b',
-    accentColor: '#ffffff',
-    needsParams: false
   }
 ]
 
@@ -82,6 +74,7 @@ export const IPC = {
   // Popup → Main
   POPUP_CONFIRM: 'popup:confirm',           // invoke → void
   POPUP_CANCEL: 'popup:cancel',             // notify
+  IMAGE_LOAD_PREVIEW: 'image:load-preview', // invoke → { dataUrl, width, height }
 
   // Hub → Main
   HUB_TRIGGER_DEMO: 'hub:trigger-demo',

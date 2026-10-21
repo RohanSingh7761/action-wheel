@@ -246,6 +246,25 @@ function registerIpcHandlers(): void {
     hideWheel()
   })
 
+  // Load image preview for interactive tools like Crop
+  ipcMain.handle(IPC.IMAGE_LOAD_PREVIEW, async (_e, filePath: string) => {
+    try {
+      const meta = await sharp(filePath).metadata()
+      const buffer = await sharp(filePath)
+        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 90 })
+        .toBuffer()
+      return {
+        dataUrl: `data:image/jpeg;base64,${buffer.toString('base64')}`,
+        width: meta.width || 800,
+        height: meta.height || 600
+      }
+    } catch (err) {
+      console.error('[preview] Error generating preview for crop:', err)
+      return null
+    }
+  })
+
   // Hub actions
   ipcMain.on(IPC.HUB_TRIGGER_DEMO, () => {
     triggerDemoWheel()

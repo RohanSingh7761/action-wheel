@@ -78,3 +78,33 @@ input[type='number']::-webkit-outer-spin-button {
 input[type='number'] {
   -moz-appearance: textfield;
 }
+
+/* ReactCrop Fluent Dark Styling */
+.ReactCrop {
+  border-radius: 6px;
+  max-width: 100%;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.ReactCrop__crop-mask {
+  background-color: rgba(0, 0, 0, 0.68) !important;
+}
+.ReactCrop__crop-selection {
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.3) !important;
+}
+.ReactCrop__drag-handle {
+  width: 9px !important;
+  height: 9px !important;
+  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.7) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6) !important;
+}
+.ReactCrop__rule-of-thirds-vt:before,
+.ReactCrop__rule-of-thirds-vt:after,
+.ReactCrop__rule-of-thirds-hz:before,
+.ReactCrop__rule-of-thirds-hz:after {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
