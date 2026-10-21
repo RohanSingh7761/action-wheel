@@ -23,40 +23,40 @@ export const ACTIONS: ActionMeta[] = [
   {
     id: 'convert-pdf',
     label: 'To PDF',
-    icon: '📄',
-    color: 'rgba(255, 255, 255, 0.08)',
+    icon: 'pdf',
+    color: '#13151b',
     accentColor: '#ffffff',
     needsParams: false
   },
   {
     id: 'convert-format',
     label: 'Convert',
-    icon: '🔄',
-    color: 'rgba(255, 255, 255, 0.08)',
+    icon: 'convert',
+    color: '#13151b',
     accentColor: '#ffffff',
     needsParams: true
   },
   {
     id: 'crop',
     label: 'Crop',
-    icon: '✂️',
-    color: 'rgba(255, 255, 255, 0.08)',
+    icon: 'crop',
+    color: '#13151b',
     accentColor: '#ffffff',
     needsParams: true
   },
   {
     id: 'compress',
     label: 'Compress',
-    icon: '🗜️',
-    color: 'rgba(255, 255, 255, 0.08)',
+    icon: 'compress',
+    color: '#13151b',
     accentColor: '#ffffff',
     needsParams: true
   },
   {
     id: 'copy',
     label: 'Copy',
-    icon: '📋',
-    color: 'rgba(255, 255, 255, 0.08)',
+    icon: 'copy',
+    color: '#13151b',
     accentColor: '#ffffff',
     needsParams: false
   }

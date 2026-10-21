@@ -4,6 +4,7 @@ import WheelSegment from './WheelSegment'
 import CenterPreview from './CenterPreview'
 import type { ActionId, TriggerPayload } from '../../shared/ipc-types'
 import { ACTIONS } from '../../shared/ipc-types'
+import { CloseIcon } from '../shared/Icons'
 
 interface ActionWheelProps {
   triggerData: TriggerPayload
@@ -13,9 +14,9 @@ interface ActionWheelProps {
 }
 
 const INNER_R = 68
-const OUTER_R = 155
-const TOTAL_SEGMENTS = ACTIONS.length // 6
-const GAP_DEG = 4 // degrees of gap between segments
+const OUTER_R = 156
+const TOTAL_SEGMENTS = ACTIONS.length // 5
+const GAP_DEG = 3 // Tight, precise 3-degree angular gap
 
 function polarToCart(angleDeg: number, r: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180
@@ -63,7 +64,7 @@ export default function ActionWheel({
   const wheelSize = (OUTER_R + 16) * 2
   const halfSize = wheelSize / 2
 
-  // ── Lock the wheel position permanently at initial trigger coordinates ──
+  // Lock the wheel position permanently at initial trigger coordinates with boundary safety
   const centerPos = useRef({
     cx: Math.max(halfSize, Math.min(triggerData.cursorX, window.innerWidth - halfSize)),
     cy: Math.max(halfSize, Math.min(triggerData.cursorY, window.innerHeight - halfSize))
@@ -83,7 +84,7 @@ export default function ActionWheel({
       } finally {
         setTimeout(() => {
           isSubmittingRef.current = false
-        }, 600)
+        }, 500)
       }
     },
     [isProcessing]
@@ -101,17 +102,17 @@ export default function ActionWheel({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onDismiss])
 
-  // ── Global pointer tracking for both MouseMove and DragOver ──
+  // Global pointer tracking for both MouseMove and OS DragOver
   useEffect(() => {
     const checkAngle = (clientX: number, clientY: number): number | null => {
       const dx = clientX - cx
       const dy = clientY - cy
       const dist = Math.sqrt(dx * dx + dy * dy)
 
-      if (dist >= INNER_R * 0.6 && dist <= OUTER_R + 60) {
+      if (dist >= INNER_R * 0.75 && dist <= OUTER_R + 50) {
         const rad = Math.atan2(dy, dx)
         const segAngle = 360 / TOTAL_SEGMENTS
-        // Offset by +segAngle/2 to align with centered segment 0
+        // Offset by +segAngle/2 to align with centered segment 0 at 12 o'clock
         const deg = ((rad * 180) / Math.PI + 90 + segAngle / 2 + 360) % 360
         return Math.floor(deg / segAngle) % TOTAL_SEGMENTS
       }
@@ -137,7 +138,6 @@ export default function ActionWheel({
       }
     }
 
-    // Window events handle both standard mouse and OS file drag
     window.addEventListener('mousemove', onPointerMove)
     window.addEventListener('dragover', onPointerMove)
     window.addEventListener('mouseup', onPointerRelease)
@@ -151,7 +151,6 @@ export default function ActionWheel({
     }
   }, [cx, cy, handleSegmentClick, onDismiss, triggerData.filePath])
 
-  // Click outside wheel = dismiss
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement
@@ -165,23 +164,23 @@ export default function ActionWheel({
   return (
     <motion.div
       id="wheel-backdrop"
-      className="fixed inset-0 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center select-none"
       style={{ background: 'transparent', cursor: 'default' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.1 }}
+      transition={{ duration: 0.12 }}
       onClick={handleBackdropClick}
     >
-      {/* Subtle radial dark vignette so wheel pops */}
+      {/* Subtle radial depth gradient behind wheel for crisp separation */}
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle ${OUTER_R + 80}px at ${cx}px ${cy}px, transparent 60%, rgba(0,0,0,0.25) 100%)`
+          background: `radial-gradient(circle ${OUTER_R + 90}px at ${cx}px ${cy}px, rgba(0,0,0,0.18) 0%, transparent 80%)`
         }}
       />
 
-      {/* The Wheel — Fixed at (cx, cy) */}
+      {/* The Radial Action Wheel */}
       <motion.div
         className="absolute"
         style={{
@@ -191,10 +190,10 @@ export default function ActionWheel({
           height: wheelSize,
           pointerEvents: 'none'
         }}
-        initial={{ scale: 0.35, opacity: 0 }}
+        initial={{ scale: 0.94, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.35, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 28, mass: 0.8 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
       >
         <svg
           width={wheelSize}
@@ -202,21 +201,27 @@ export default function ActionWheel({
           viewBox={`${-halfSize} ${-halfSize} ${wheelSize} ${wheelSize}`}
           style={{ overflow: 'visible', pointerEvents: 'all' }}
         >
-          {/* Drop shadow filter */}
           <defs>
-            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="4" stdDeviation="12" floodColor="rgba(0,0,0,0.5)" />
-            </filter>
-            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            {/* Multi-layered soft realistic desktop shadow */}
+            <filter id="fluent-shadow" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="16" stdDeviation="28" floodColor="rgba(0, 0, 0, 0.72)" />
+              <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="rgba(0, 0, 0, 0.45)" />
             </filter>
           </defs>
 
-          <g filter="url(#shadow)">
+          {/* Precision outer rim ring */}
+          <circle
+            cx="0"
+            cy="0"
+            r={OUTER_R + 1}
+            fill="none"
+            stroke="rgba(255, 255, 255, 0.05)"
+            strokeWidth="1"
+            style={{ pointerEvents: 'none' }}
+          />
+
+          {/* Dial Segments */}
+          <g filter="url(#fluent-shadow)">
             {ACTIONS.map((action, i) => (
               <WheelSegment
                 key={action.id}
@@ -234,7 +239,7 @@ export default function ActionWheel({
           </g>
         </svg>
 
-        {/* Center preview circle */}
+        {/* Center Preview & Brand Core */}
         <div
           className="absolute"
           style={{
@@ -254,13 +259,13 @@ export default function ActionWheel({
           />
         </div>
 
-        {/* Floating Cancel Pill Button below the wheel */}
+        {/* Floating Understated Cancel Pill */}
         <div
           className="absolute flex items-center justify-center"
           style={{
             left: 0,
             right: 0,
-            top: wheelSize + 16,
+            top: wheelSize + 14,
             pointerEvents: 'none'
           }}
         >
@@ -270,11 +275,13 @@ export default function ActionWheel({
               e.stopPropagation()
               onDismiss()
             }}
-            className="pointer-events-auto flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium text-zinc-300 hover:text-white bg-zinc-950/70 hover:bg-zinc-900/90 border border-white/12 hover:border-white/30 backdrop-blur-2xl transition-all cursor-pointer shadow-2xl active:scale-95"
+            className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white bg-[#0e1013]/90 hover:bg-[#15171d] border border-white/[0.08] hover:border-white/20 backdrop-blur-xl transition-all cursor-pointer shadow-lg active:scale-95"
           >
-            <span className="text-zinc-400 font-bold text-xs">✕</span>
+            <CloseIcon size={11} strokeWidth={2} className="text-zinc-500" />
             <span>Cancel</span>
-            <span className="text-[10px] text-zinc-500 font-mono ml-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/10">Esc / Tab</span>
+            <span className="text-[10px] text-zinc-500 font-mono ml-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
+              Esc / Tab
+            </span>
           </button>
         </div>
       </motion.div>

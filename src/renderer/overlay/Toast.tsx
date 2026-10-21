@@ -1,5 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
+import { CheckIcon, AlertCircleIcon } from '../shared/Icons'
 
 interface ToastProps {
   type: 'success' | 'error'
@@ -12,42 +13,39 @@ export default function Toast({ type, message, subMessage }: ToastProps): React.
 
   return (
     <motion.div
-      className="fixed bottom-8 right-8 flex items-center gap-3 px-5 py-3.5 rounded-2xl"
+      className="fixed bottom-6 right-6 flex items-center gap-3 px-4 py-2.5 rounded-xl z-50 select-none shadow-2xl"
       style={{
-        background: isSuccess ? 'rgba(30,41,30,0.85)' : 'rgba(41,20,20,0.85)',
-        border: `1px solid ${isSuccess ? 'rgba(52,211,153,0.4)' : 'rgba(251,113,133,0.4)'}`,
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        boxShadow: `0 8px 32px ${isSuccess ? 'rgba(52,211,153,0.15)' : 'rgba(251,113,133,0.15)'}`,
-        minWidth: 220,
-        maxWidth: 360,
-        zIndex: 9999
+        background: 'rgba(15, 17, 22, 0.96)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 16px 36px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+        minWidth: 200,
+        maxWidth: 340
       }}
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      exit={{ opacity: 0, y: 6, scale: 0.98 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      {/* Icon */}
+      {/* Precision Icon Badge */}
       <div
-        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-        style={{
-          background: isSuccess ? 'rgba(52,211,153,0.2)' : 'rgba(251,113,133,0.2)'
-        }}
+        className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
+          isSuccess
+            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+        }`}
       >
-        <span style={{ fontSize: 16 }}>{isSuccess ? '✓' : '✕'}</span>
+        {isSuccess ? <CheckIcon size={13} strokeWidth={2.2} /> : <AlertCircleIcon size={13} strokeWidth={2.2} />}
       </div>
 
-      {/* Text */}
-      <div className="flex flex-col min-w-0">
-        <span
-          className="font-semibold text-sm"
-          style={{ color: isSuccess ? '#34d399' : '#fb7185' }}
-        >
+      {/* Content */}
+      <div className="flex flex-col min-w-0 pr-1">
+        <span className="font-medium text-xs text-white leading-tight">
           {message}
         </span>
         {subMessage && (
-          <span className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <span className="text-[11px] text-zinc-400 mt-0.5 truncate leading-tight font-normal">
             {subMessage}
           </span>
         )}

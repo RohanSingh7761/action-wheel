@@ -4,6 +4,7 @@ import type { ActionId, PopupInitPayload } from '../../shared/ipc-types'
 import FormatPicker from './FormatPicker'
 import CropEditor from './CropEditor'
 import CompressSlider from './CompressSlider'
+import { ConvertIcon, CropIcon, CompressIcon, CloseIcon } from '../shared/Icons'
 
 export default function App(): React.ReactElement {
   const [initData, setInitData] = useState<PopupInitPayload | null>(null)
@@ -30,56 +31,77 @@ export default function App(): React.ReactElement {
 
   if (!initData) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full h-full p-3 flex items-center justify-center select-none">
         <div
           className="w-full h-full rounded-2xl flex items-center justify-center"
           style={{
-            background: 'rgba(15,15,20,0.8)',
-            backdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255,255,255,0.1)'
+            background: 'rgba(14, 16, 21, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
           }}
         >
-          <span className="text-white/40 text-sm">Loading…</span>
+          <span className="text-zinc-500 text-xs font-medium">Loading…</span>
         </div>
       </div>
     )
   }
 
+  const getActionMeta = (action: ActionId) => {
+    switch (action) {
+      case 'convert-format':
+        return { title: 'Convert Format', icon: <ConvertIcon size={15} strokeWidth={1.8} /> }
+      case 'crop':
+        return { title: 'Crop Image', icon: <CropIcon size={15} strokeWidth={1.8} /> }
+      case 'compress':
+        return { title: 'Compress Image', icon: <CompressIcon size={15} strokeWidth={1.8} /> }
+      default:
+        return { title: 'Image Settings', icon: null }
+    }
+  }
+
+  const { title, icon } = getActionMeta(initData.action)
+
   return (
     <motion.div
-      className="w-full h-full p-4"
-      initial={{ opacity: 0, scale: 0.92, y: 10 }}
+      className="w-full h-full p-2.5 select-none"
+      initial={{ opacity: 0, scale: 0.97, y: 6 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      exit={{ opacity: 0, scale: 0.97, y: 6 }}
+      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
     >
       <div
         className="w-full h-full rounded-2xl overflow-hidden flex flex-col"
         style={{
-          background: 'rgba(12,14,20,0.88)',
-          backdropFilter: 'blur(28px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(28px) saturate(200%)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)'
+          background: 'rgba(14, 16, 21, 0.96)',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
         }}
       >
-        {/* Header */}
+        {/* Compact Title Bar */}
         <div
           className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+          style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
         >
-          <span className="text-white/90 font-semibold text-sm">
-            {actionTitle(initData.action)}
-          </span>
+          <div className="flex items-center gap-2 text-zinc-200">
+            <span className="text-zinc-400">{icon}</span>
+            <span className="font-semibold text-xs tracking-tight text-white">
+              {title}
+            </span>
+          </div>
+
           <button
             onClick={() => (window as any).popupAPI?.cancel()}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors text-sm"
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+            title="Close (Esc)"
           >
-            ✕
+            <CloseIcon size={13} strokeWidth={2} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5">
+        {/* Modal Body Container */}
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col">
           {initData.action === 'convert-format' && (
             <FormatPicker filePath={initData.filePath} />
           )}
@@ -93,13 +115,4 @@ export default function App(): React.ReactElement {
       </div>
     </motion.div>
   )
-}
-
-function actionTitle(action: ActionId): string {
-  switch (action) {
-    case 'convert-format': return '🔄 Convert Format'
-    case 'crop': return '✂️ Crop Image'
-    case 'compress': return '🗜️ Compress Image'
-    default: return 'Options'
-  }
 }

@@ -1,6 +1,7 @@
 import React from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { ActionMeta } from '../../shared/ipc-types'
+import { ApertureIcon, CloseIcon } from '../shared/Icons'
 
 interface CenterPreviewProps {
   thumbnail?: string
@@ -10,8 +11,6 @@ interface CenterPreviewProps {
   onCancel?: () => void
 }
 
-const INNER_R = 68
-
 export default function CenterPreview({
   thumbnail,
   filePath,
@@ -19,72 +18,78 @@ export default function CenterPreview({
   hoveredAction,
   onCancel
 }: CenterPreviewProps): React.ReactElement {
-  const fileName = filePath.split('\\').pop()?.split('/').pop() ?? 'image'
+  const fileName = filePath.split('\\').pop()?.split('/').pop() ?? 'Image'
   const truncName = fileName.length > 14 ? fileName.slice(0, 12) + '…' : fileName
 
   return (
     <div
-      className="w-full h-full rounded-full flex flex-col items-center justify-center relative overflow-hidden"
+      className="w-full h-full rounded-full flex flex-col items-center justify-center relative overflow-hidden select-none"
       style={{
-        background: 'rgba(16, 18, 24, 0.82)',
-        border: '1.5px solid rgba(255, 255, 255, 0.18)',
-        backdropFilter: 'blur(32px) saturate(190%)',
-        WebkitBackdropFilter: 'blur(32px) saturate(190%)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+        background: 'rgba(15, 17, 22, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.55)'
       }}
     >
-      {/* Thumbnail */}
+      {/* Subtle Thumbnail Texture (when idle) */}
       {thumbnail && !isProcessing && !hoveredAction && (
         <img
           src={thumbnail}
-          alt="preview"
-          className="absolute inset-0 w-full h-full object-cover rounded-full"
-          style={{ opacity: 0.35 }}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover rounded-full pointer-events-none"
+          style={{ opacity: 0.18, filter: 'grayscale(40%)' }}
         />
       )}
 
-      {/* Processing spinner */}
+      {/* State: Processing Spinner */}
       {isProcessing && (
-        <motion.div
-          className="w-10 h-10 rounded-full"
-          style={{
-            border: '3px solid rgba(255,255,255,0.15)',
-            borderTopColor: '#ffffff'
-          }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-        />
+        <div className="flex flex-col items-center gap-1.5 z-10">
+          <div
+            className="w-6 h-6 rounded-full animate-spin"
+            style={{
+              border: '2px solid rgba(255, 255, 255, 0.12)',
+              borderTopColor: '#ffffff'
+            }}
+          />
+          <span className="text-[10px] font-medium text-zinc-400 tracking-wide">
+            Processing
+          </span>
+        </div>
       )}
 
-      {/* Hovered action info */}
+      {/* State: Hovered Action Armed */}
       {!isProcessing && hoveredAction && (
         <motion.div
-          className="flex flex-col items-center gap-1 z-10"
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.85 }}
-          transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+          key="hovered"
+          className="flex flex-col items-center text-center px-2 z-10"
+          initial={{ opacity: 0, y: 3 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: 0.12, ease: 'easeOut' }}
         >
-          <span style={{ fontSize: 26 }}>{hoveredAction.icon}</span>
-          <span
-            className="font-semibold text-white text-xs tracking-tight"
-          >
+          <div className="w-1.5 h-1.5 rounded-full bg-white mb-1.5 shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+          <span className="font-semibold text-white text-xs tracking-tight leading-none">
             {hoveredAction.label}
+          </span>
+          <span className="text-[9.5px] text-zinc-400 mt-1 tracking-normal font-normal">
+            Release to execute
           </span>
         </motion.div>
       )}
 
-      {/* File name & Cancel button (when idle) */}
+      {/* State: Idle / Center Emblem & Name */}
       {!isProcessing && !hoveredAction && (
         <motion.div
-          className="flex flex-col items-center gap-1 px-2 text-center z-10"
+          key="idle"
+          className="flex flex-col items-center text-center px-2 z-10 gap-0.5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
+          transition={{ duration: 0.15 }}
         >
+          <ApertureIcon size={18} strokeWidth={1.5} className="text-zinc-500 mb-0.5" />
           <span
-            className="text-zinc-200 font-medium max-w-[100px] truncate"
-            style={{ fontSize: 10.5, lineHeight: 1.2 }}
+            className="text-zinc-300 font-medium max-w-[96px] truncate text-[11px] leading-tight"
             title={fileName}
           >
             {truncName}
@@ -95,9 +100,10 @@ export default function CenterPreview({
               e.stopPropagation()
               onCancel?.()
             }}
-            className="pointer-events-auto mt-0.5 px-3 py-0.5 rounded-full text-[10px] font-medium text-zinc-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/30 backdrop-blur-md transition-all cursor-pointer flex items-center gap-1 active:scale-95 shadow-sm"
+            className="mt-1 px-2 py-0.5 rounded-md text-[9.5px] font-medium text-zinc-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.08] transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+            title="Dismiss wheel (Esc / Tab)"
           >
-            <span>✕</span>
+            <CloseIcon size={10} strokeWidth={2} />
             <span>Cancel</span>
           </button>
         </motion.div>

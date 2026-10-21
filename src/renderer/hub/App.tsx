@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { ApertureIcon, SparklesIcon, ImageIcon, CloseIcon } from '../shared/Icons'
 
 export default function App(): React.ReactElement {
   const [isDragOver, setIsDragOver] = useState(false)
@@ -40,7 +41,6 @@ export default function App(): React.ReactElement {
     const files = e.dataTransfer.files
     if (files.length > 0) {
       const file = files[0]
-      // In Electron, File objects have a .path property
       const filePath = (file as any).path
       if (filePath) {
         ;(window as any).hubAPI?.dropFile(filePath)
@@ -49,41 +49,41 @@ export default function App(): React.ReactElement {
   }
 
   return (
-    <div className="w-full h-full p-3 flex items-center justify-center select-none font-sans">
+    <div className="w-full h-full p-2.5 flex items-center justify-center select-none font-sans">
       <motion.div
-        className="w-full h-full rounded-3xl overflow-hidden flex flex-col relative"
+        className="w-full h-full rounded-2xl overflow-hidden flex flex-col relative"
         style={{
-          background: 'rgba(15, 23, 42, 0.82)',
-          backdropFilter: 'blur(32px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
-          border: '1px solid rgba(255, 255, 255, 0.14)',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12)'
+          background: 'rgba(14, 16, 21, 0.96)',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
         }}
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.15 }}
       >
         {/* Title Bar (Draggable) */}
         <div
-          className="flex items-center justify-between px-5 py-4 cursor-move"
+          className="flex items-center justify-between px-4 py-3 cursor-move"
           style={{
             // @ts-ignore
             WebkitAppRegion: 'drag',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
           }}
         >
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">🌀</span>
-            <span className="text-white font-semibold text-sm tracking-wide">
+          <div className="flex items-center gap-2">
+            <ApertureIcon size={16} strokeWidth={1.8} className="text-zinc-400" />
+            <span className="text-white font-semibold text-xs tracking-tight">
               Action Wheel
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              Live
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Active
             </span>
           </div>
 
           <div
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1"
             style={{
               // @ts-ignore
               WebkitAppRegion: 'no-drag'
@@ -91,75 +91,67 @@ export default function App(): React.ReactElement {
           >
             <button
               onClick={handleMinimize}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-              title="Minimize to background"
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors text-xs"
+              title="Minimize to system tray"
             >
               —
             </button>
             <button
               onClick={handleQuit}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
               title="Quit"
             >
-              ✕
+              <CloseIcon size={12} strokeWidth={2} />
             </button>
           </div>
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 p-5 flex flex-col gap-4 overflow-y-auto">
+        <div className="flex-1 p-4 flex flex-col gap-3.5 overflow-y-auto">
           {/* Main Action Demo Button */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
+            type="button"
             onClick={handleDemo}
-            className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-semibold text-white text-base shadow-lg transition-all"
-            style={{
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              boxShadow: '0 8px 24px rgba(59, 130, 246, 0.35)'
-            }}
+            className="w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-semibold text-xs text-zinc-950 bg-white hover:bg-zinc-200 shadow-md active:scale-[0.99] transition-all cursor-pointer"
           >
-            <span className="text-xl">✨</span>
-            <span>Launch Action Wheel Now</span>
-          </motion.button>
+            <SparklesIcon size={14} strokeWidth={2} />
+            <span>Simulate Wheel Preview</span>
+          </button>
 
           {/* Drag & Drop Zone */}
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`flex-1 rounded-2xl flex flex-col items-center justify-center p-6 text-center border-2 border-dashed transition-all ${
+            className={`flex-1 rounded-xl flex flex-col items-center justify-center p-5 text-center border border-dashed transition-all ${
               isDragOver
-                ? 'border-blue-400 bg-blue-500/20 scale-[1.01]'
-                : 'border-white/15 bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.05]'
+                ? 'border-white/40 bg-white/[0.06] scale-[1.01]'
+                : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
             }`}
           >
-            <span className="text-4xl mb-2">🖼️</span>
-            <p className="text-white/90 font-medium text-sm">
+            <ImageIcon size={26} strokeWidth={1.5} className="text-zinc-500 mb-2" />
+            <p className="text-zinc-200 font-medium text-xs">
               Drop an image here
             </p>
-            <p className="text-white/40 text-xs mt-1">
-              or drag an image anywhere on Windows and press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/80 font-mono text-[11px]">Tab</kbd>
+            <p className="text-zinc-500 text-[11px] mt-1">
+              or drag any image in Windows and press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-zinc-300 font-mono text-[10px]">Tab</kbd>
             </p>
           </div>
 
           {/* Quick Select File Button */}
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
+          <button
+            type="button"
             onClick={handleSelectFile}
-            className="w-full py-3 rounded-xl flex items-center justify-center gap-2 text-white/80 hover:text-white text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+            className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2 text-zinc-300 hover:text-white text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer"
           >
-            <span>📂</span>
             <span>Choose Image from Disk...</span>
-          </motion.button>
+          </button>
 
           {/* Footer Guide */}
-          <div className="flex items-center justify-between px-1 text-[11px] text-white/40">
-            <span>Global Hotkey:</span>
-            <span className="font-mono bg-white/10 px-2 py-0.5 rounded text-white/70">
-              Ctrl + Shift + W
+          <div className="flex items-center justify-between px-1 text-[11px] text-zinc-500">
+            <span>Trigger Gesture:</span>
+            <span className="font-mono bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded text-zinc-400">
+              Drag Image + Tab
             </span>
           </div>
         </div>
