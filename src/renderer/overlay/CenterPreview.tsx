@@ -7,6 +7,7 @@ interface CenterPreviewProps {
   filePath: string
   isProcessing: boolean
   hoveredAction: ActionMeta | null
+  onCancel?: () => void
 }
 
 const INNER_R = 68
@@ -15,17 +16,18 @@ export default function CenterPreview({
   thumbnail,
   filePath,
   isProcessing,
-  hoveredAction
+  hoveredAction,
+  onCancel
 }: CenterPreviewProps): React.ReactElement {
   const fileName = filePath.split('\\').pop()?.split('/').pop() ?? 'image'
-  const truncName = fileName.length > 16 ? fileName.slice(0, 14) + '…' : fileName
+  const truncName = fileName.length > 14 ? fileName.slice(0, 12) + '…' : fileName
 
   return (
     <div
       className="w-full h-full rounded-full flex flex-col items-center justify-center relative overflow-hidden"
       style={{
-        background: 'rgba(0,0,0,0.55)',
-        border: '1.5px solid rgba(255,255,255,0.18)',
+        background: 'rgba(0,0,0,0.65)',
+        border: '1.5px solid rgba(255,255,255,0.2)',
         backdropFilter: 'blur(24px) saturate(200%)',
         WebkitBackdropFilter: 'blur(24px) saturate(200%)'
       }}
@@ -36,7 +38,7 @@ export default function CenterPreview({
           src={thumbnail}
           alt="preview"
           className="absolute inset-0 w-full h-full object-cover rounded-full"
-          style={{ opacity: 0.6 }}
+          style={{ opacity: 0.4 }}
         />
       )}
 
@@ -56,13 +58,13 @@ export default function CenterPreview({
       {/* Hovered action info */}
       {!isProcessing && hoveredAction && (
         <motion.div
-          className="flex flex-col items-center gap-1"
+          className="flex flex-col items-center gap-1 z-10"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           transition={{ type: 'spring', stiffness: 600, damping: 30 }}
         >
-          <span style={{ fontSize: 28 }}>{hoveredAction.icon}</span>
+          <span style={{ fontSize: 26 }}>{hoveredAction.icon}</span>
           <span
             className="font-semibold text-white text-xs"
             style={{ color: hoveredAction.accentColor }}
@@ -72,21 +74,32 @@ export default function CenterPreview({
         </motion.div>
       )}
 
-      {/* File name (when idle) */}
+      {/* File name & Cancel button (when idle) */}
       {!isProcessing && !hoveredAction && (
         <motion.div
-          className="flex flex-col items-center gap-1 px-2 text-center"
+          className="flex flex-col items-center gap-1 px-2 text-center z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.1 }}
         >
-          <span style={{ fontSize: 20 }}>🖼️</span>
           <span
-            className="text-white font-medium"
-            style={{ fontSize: 10, opacity: 0.8, lineHeight: 1.3 }}
+            className="text-white font-medium max-w-[100px] truncate"
+            style={{ fontSize: 10, opacity: 0.9, lineHeight: 1.2 }}
+            title={fileName}
           >
             {truncName}
           </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onCancel?.()
+            }}
+            className="pointer-events-auto mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-rose-300 bg-rose-500/25 hover:bg-rose-500/50 border border-rose-500/40 hover:border-rose-400 transition-all cursor-pointer flex items-center gap-1 active:scale-95 shadow-md"
+          >
+            <span>✕</span>
+            <span>Cancel</span>
+          </button>
         </motion.div>
       )}
     </div>

@@ -75,13 +75,28 @@ export default function ActionWheel({
       const api = (window as any).overlayAPI
       if (!api) return
       try {
-        await api.selectAction({ action, filePath })
+        const res = await api.selectAction({ action, filePath })
+        if (res?.needsParams) {
+          onDismiss()
+        }
       } catch (err) {
         console.error('selectAction error:', err)
       }
     },
-    [isProcessing]
+    [isProcessing, onDismiss]
   )
+
+  // Escape or Tab key dismisses
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Tab') {
+        e.preventDefault()
+        onDismiss()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onDismiss])
 
   // ── Global pointer tracking for both MouseMove and DragOver ──
   useEffect(() => {
@@ -224,7 +239,7 @@ export default function ActionWheel({
             top: halfSize - INNER_R,
             width: INNER_R * 2,
             height: INNER_R * 2,
-            pointerEvents: 'none'
+            pointerEvents: 'auto'
           }}
         >
           <CenterPreview
@@ -232,7 +247,32 @@ export default function ActionWheel({
             filePath={triggerData.filePath}
             isProcessing={isProcessing}
             hoveredAction={hoveredIndex !== null ? ACTIONS[hoveredIndex] : null}
+            onCancel={onDismiss}
           />
+        </div>
+
+        {/* Floating Cancel Pill Button below the wheel */}
+        <div
+          className="absolute flex items-center justify-center"
+          style={{
+            left: 0,
+            right: 0,
+            top: wheelSize + 10,
+            pointerEvents: 'none'
+          }}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDismiss()
+            }}
+            className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium text-white/80 hover:text-white bg-black/50 hover:bg-rose-950/70 border border-white/20 hover:border-rose-500/60 backdrop-blur-xl transition-all cursor-pointer shadow-lg active:scale-95"
+          >
+            <span className="text-rose-400 font-bold">✕</span>
+            <span>Cancel</span>
+            <span className="text-[10px] text-white/40 font-mono ml-1">Esc / Tab</span>
+          </button>
         </div>
       </motion.div>
     </motion.div>

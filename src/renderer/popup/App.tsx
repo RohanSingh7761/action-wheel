@@ -17,6 +17,17 @@ export default function App(): React.ReactElement {
     return cleanup
   }, [])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Tab') {
+        e.preventDefault()
+        ;(window as any).popupAPI?.cancel()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   if (!initData) {
     return (
       <div className="w-full h-full flex items-center justify-center">

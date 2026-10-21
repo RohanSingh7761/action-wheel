@@ -62,6 +62,20 @@ let currentFilePath: string | null = null
 let currentCursorX = 0
 let currentCursorY = 0
 let pendingAction: ActionId | null = null
+const wsClients = new Set<WebSocket>()
+
+function broadcastWs(msg: object): void {
+  const json = JSON.stringify(msg)
+  for (const client of wsClients) {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(json)
+      } catch (err) {
+        console.warn('[ws] send error:', err)
+      }
+    }
+  }
+}
 
 function getDemoImagePath(): string {
   const samplePath = join(__dirname, '../../resources/sample.jpg')
@@ -145,6 +159,7 @@ export async function triggerWheel(filePath: string, cursorX: number, cursorY: n
 
   enableMouseOnOverlay()
   showOverlay()
+  broadcastWs({ type: 'WHEEL_OPENED' })
 
   const payload: TriggerPayload = { filePath, cursorX, cursorY, thumbnail }
   overlayWin.webContents.send(IPC.OVERLAY_TRIGGER, payload)
@@ -179,6 +194,10 @@ function registerIpcHandlers(): void {
     if (meta?.needsParams) {
       pendingAction = action as ActionId
 
+      // Immediately hide the wheel overlay so it doesn't linger behind the popup
+      hideOverlay()
+      disableMouseOnOverlay()
+
       // Show popup near cursor
       const popupWin = getPopupWindow()
       if (popupWin) {
@@ -196,7 +215,7 @@ function registerIpcHandlers(): void {
     return { needsParams: false }
   })
 
-  // Overlay dismissed (click outside)
+  // Overlay dismissed (click outside / cancel button)
   ipcMain.on(IPC.WHEEL_DISMISS, () => {
     hideWheel()
   })
@@ -204,35 +223,31 @@ function registerIpcHandlers(): void {
   // Popup confirmed with params
   ipcMain.handle(IPC.POPUP_CONFIRM, async (_e, { params }: PopupConfirmPayload) => {
     hidePopup()
-    if (!currentFilePath || !pendingAction) return
+    if (!currentFilePath || !pendingAction) {
+      hideWheel()
+      return
+    }
 
-    const overlayWin = getOverlayWindow()
-    overlayWin?.webContents.send(IPC.OVERLAY_PROCESSING, { action: pendingAction })
+    const action = pendingAction
+    const filePath = currentFilePath
+    pendingAction = null
 
     try {
-      const result = await processAction(pendingAction, currentFilePath, params)
-      overlayWin?.webContents.send(IPC.OVERLAY_DONE, {
-        action: pendingAction,
-        outputPath: result.outputPath,
-        sizeInfo: result.sizeInfo
-      })
-
-      // Immediately release mouse events so desktop is never blocked
-      disableMouseOnOverlay()
+      const result = await processAction(action, filePath, params)
+      hideWheel()
 
       if (result.outputPath) {
         shell.openPath(result.outputPath)
       }
     } catch (err) {
-      disableMouseOnOverlay()
-      overlayWin?.webContents.send(IPC.OVERLAY_ERROR, { message: String(err) })
+      hideWheel()
+      console.error('[process] Error processing popup action:', err)
     }
   })
 
   // Popup cancelled
   ipcMain.on(IPC.POPUP_CANCEL, () => {
-    hidePopup()
-    disableMouseOnOverlay()
+    hideWheel()
   })
 
   // Hub actions
@@ -273,12 +288,14 @@ async function processImmediate(action: ActionId, filePath: string): Promise<voi
 
     // Immediately release mouse events so desktop is never blocked
     disableMouseOnOverlay()
+    broadcastWs({ type: 'WHEEL_CLOSED' })
 
     if (action !== 'edit' && action !== 'copy' && result.outputPath) {
       shell.openPath(result.outputPath)
     }
   } catch (err) {
     disableMouseOnOverlay()
+    broadcastWs({ type: 'WHEEL_CLOSED' })
     overlayWin?.webContents.send(IPC.OVERLAY_ERROR, { message: String(err) })
   }
 }
@@ -287,6 +304,9 @@ function hideWheel(): void {
   disableMouseOnOverlay()
   hideOverlay()
   hidePopup()
+  pendingAction = null
+  currentFilePath = null
+  broadcastWs({ type: 'WHEEL_CLOSED' })
 }
 
 // ─── WebSocket Server (for Native Hook Daemon) ────────────────────────────────
@@ -296,6 +316,8 @@ function startHookServer(): void {
     const wss = new WebSocketServer({ port: 39217, host: '127.0.0.1' })
     wss.on('connection', (ws: WebSocket) => {
       console.log('[hook] Native drag hook connected')
+      wsClients.add(ws)
+
       ws.on('message', async (raw) => {
         try {
           const msg = JSON.parse(raw.toString())
@@ -303,10 +325,21 @@ function startHookServer(): void {
             const { filePath, cursorX, cursorY } = msg
             console.log(`[hook] Trigger from native hook: ${filePath} at (${cursorX}, ${cursorY})`)
             await triggerWheel(filePath, cursorX, cursorY)
+          } else if (msg.type === 'DISMISS') {
+            console.log('[hook] Dismiss request from native hook')
+            hideWheel()
           }
         } catch (err) {
           console.error('[hook] Bad message:', err)
         }
+      })
+
+      ws.on('close', () => {
+        wsClients.delete(ws)
+      })
+
+      ws.on('error', () => {
+        wsClients.delete(ws)
       })
     })
     console.log('[hook] WebSocket server listening on ws://127.0.0.1:39217')

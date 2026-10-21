@@ -73,20 +73,30 @@ export default function FormatPicker({ filePath }: { filePath: string }): React.
         </div>
       )}
 
-      {/* Confirm */}
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={handleConfirm}
-        className="mt-auto w-full py-2.5 rounded-xl font-semibold text-sm text-white"
-        style={{
-          background: 'linear-gradient(135deg, rgba(96,165,250,0.8), rgba(139,92,246,0.8))',
-          border: '1px solid rgba(255,255,255,0.15)',
-          cursor: 'pointer'
-        }}
-      >
-        Convert →
-      </motion.button>
+      {/* Action buttons */}
+      <div className="mt-auto flex gap-2">
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.95 }}
+          onClick={() => (window as any).popupAPI?.cancel()}
+          className="py-2.5 px-4 rounded-xl font-medium text-xs text-white/60 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer"
+        >
+          Cancel
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleConfirm}
+          className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white"
+          style={{
+            background: 'linear-gradient(135deg, rgba(96,165,250,0.8), rgba(139,92,246,0.8))',
+            border: '1px solid rgba(255,255,255,0.15)',
+            cursor: 'pointer'
+          }}
+        >
+          Convert →
+        </motion.button>
+      </div>
     </div>
   )
 }

@@ -21,10 +21,9 @@ public class DragListener {
 
     private static ClientWebSocket _ws = null;
     private static readonly Uri _serverUri = new Uri("ws://127.0.0.1:39217");
-    private static string _fallbackPath = "";
+    private static volatile bool _isWheelActive = false;
 
-    public static void Run(string fallbackPath) {
-        _fallbackPath = fallbackPath;
+    public static void Run() {
         Console.WriteLine("[listener] In-memory Drag + Tab listener started.");
 
         // WebSocket connection manager
@@ -36,6 +35,7 @@ public class DragListener {
                         using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3))) {
                             await _ws.ConnectAsync(_serverUri, cts.Token);
                             Console.WriteLine("[listener] Connected to Action Wheel at " + _serverUri);
+                            Task.Run(ReceiveLoop);
                         }
                     }
                 } catch { }
@@ -43,12 +43,26 @@ public class DragListener {
             }
         });
 
-        // Polling loop for Drag (Left Click) + Tab
+        // Polling loop for Drag (Left Click) + Tab and hotkey dismissals
         while (true) {
             short lBtn = GetAsyncKeyState(0x01); // VK_LBUTTON
             bool isMouseDown = (lBtn & 0x8000) != 0;
 
-            if (isMouseDown) {
+            if (_isWheelActive) {
+                // Wheel is active: check if Esc or Tab is pressed to dismiss
+                short esc = GetAsyncKeyState(0x1B); // VK_ESCAPE
+                short tab = GetAsyncKeyState(0x09); // VK_TAB
+                if ((esc & 0x8000) != 0 || (tab & 0x8000) != 0) {
+                    Console.WriteLine("[listener] Dismiss hotkey (Esc/Tab) detected");
+                    SendDismiss();
+                    _isWheelActive = false;
+                    while (((GetAsyncKeyState(0x1B) & 0x8000) != 0) || ((GetAsyncKeyState(0x09) & 0x8000) != 0)) {
+                        Thread.Sleep(20);
+                    }
+                }
+            }
+
+            if (isMouseDown && !_isWheelActive) {
                 short tab = GetAsyncKeyState(0x09); // VK_TAB
                 bool isTabDown = (tab & 0x8000) != 0;
 
@@ -58,17 +72,17 @@ public class DragListener {
                     Console.WriteLine("[listener] Drag + Tab detected at (" + pt.X + ", " + pt.Y + ")");
 
                     string filePath = GetSelectedImagePath();
-                    if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) {
-                        filePath = _fallbackPath;
-                    }
 
                     if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath)) {
                         Console.WriteLine("[listener] Triggering wheel for: " + filePath);
                         SendTrigger(filePath, pt.X, pt.Y);
+                        _isWheelActive = true;
+                    } else {
+                        Console.WriteLine("[listener] Drag + Tab detected, but no image item was focused/selected.");
                     }
 
-                    // Wait until the current drag gesture finishes (Left Mouse Button is released)
-                    while ((GetAsyncKeyState(0x01) & 0x8000) != 0) {
+                    // Wait until Tab key is released so we don't immediately trigger dismiss
+                    while ((GetAsyncKeyState(0x09) & 0x8000) != 0) {
                         Thread.Sleep(15);
                     }
                 } else {
@@ -76,6 +90,28 @@ public class DragListener {
                 }
             } else {
                 Thread.Sleep(15);
+            }
+        }
+    }
+
+    private static async Task ReceiveLoop() {
+        var buffer = new byte[1024];
+        while (true) {
+            try {
+                if (_ws != null && _ws.State == WebSocketState.Open) {
+                    var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    if (result.MessageType == WebSocketMessageType.Close) break;
+                    string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    if (msg.Contains("WHEEL_CLOSED")) {
+                        _isWheelActive = false;
+                    } else if (msg.Contains("WHEEL_OPENED")) {
+                        _isWheelActive = true;
+                    }
+                } else {
+                    await Task.Delay(500);
+                }
+            } catch {
+                await Task.Delay(1000);
             }
         }
     }
@@ -93,53 +129,83 @@ public class DragListener {
         }
     }
 
+    private static async void SendDismiss() {
+        try {
+            if (_ws != null && _ws.State == WebSocketState.Open) {
+                string json = "{\"type\":\"DISMISS\"}";
+                byte[] bytes = Encoding.UTF8.GetBytes(json);
+                await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+        } catch { }
+    }
+
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+
     public static string GetSelectedImagePath() {
         try {
             Type shellType = Type.GetTypeFromProgID("Shell.Application");
-            if (shellType != null) {
-                dynamic shell = Activator.CreateInstance(shellType);
-                var windows = shell.Windows();
-                foreach (var w in windows) {
-                    try {
-                        var doc = w.Document;
-                        if (doc != null) {
-                            var selected = doc.SelectedItems();
-                            if (selected != null && selected.Count > 0) {
-                                foreach (var item in selected) {
-                                    string path = item.Path;
-                                    if (!string.IsNullOrEmpty(path) && File.Exists(path)) {
-                                        string ext = Path.GetExtension(path);
-                                        if (_imageExts.Contains(ext)) return path;
-                                    }
-                                }
-                            }
-                        }
-                    } catch { }
-                }
+            if (shellType == null) return null;
+            dynamic shell = Activator.CreateInstance(shellType);
+            var windows = shell.Windows();
+            IntPtr fgHwnd = GetForegroundWindow();
 
-                // Check Desktop
+            // 1. Check if foreground window is an Explorer window
+            foreach (var w in windows) {
                 try {
-                    const int SWC_DESKTOP = 8;
-                    const int SWFO_NEEDDISPATCH = 1;
-                    int hwnd = 0;
-                    object disp = windows.FindWindowSW(Type.Missing, Type.Missing, SWC_DESKTOP, ref hwnd, SWFO_NEEDDISPATCH);
-                    if (disp != null) {
-                        dynamic desktopWin = disp;
-                        var doc = desktopWin.Document;
-                        if (doc != null) {
-                            var selected = doc.SelectedItems();
-                            if (selected != null && selected.Count > 0) {
-                                foreach (var item in selected) {
-                                    string path = item.Path;
-                                    if (!string.IsNullOrEmpty(path) && File.Exists(path)) {
-                                        string ext = Path.GetExtension(path);
-                                        if (_imageExts.Contains(ext)) return path;
-                                    }
-                                }
-                            }
-                        }
+                    if ((long)w.HWND == (long)fgHwnd) {
+                        string p = ExtractImageFromDoc(w.Document);
+                        if (!string.IsNullOrEmpty(p)) return p;
                     }
                 } catch { }
+            }
+
+            // 2. Check Desktop
+            try {
+                const int SWC_DESKTOP = 8;
+                const int SWFO_NEEDDISPATCH = 1;
+                int hwnd = 0;
+                object disp = windows.FindWindowSW(Type.Missing, Type.Missing, SWC_DESKTOP, ref hwnd, SWFO_NEEDDISPATCH);
+                if (disp != null) {
+                    dynamic desktopWin = disp;
+                    string p = ExtractImageFromDoc(desktopWin.Document);
+                    if (!string.IsNullOrEmpty(p)) return p;
+                }
+            } catch { }
+
+            // 3. Check any other Explorer windows
+            foreach (var w in windows) {
+                try {
+                    string p = ExtractImageFromDoc(w.Document);
+                    if (!string.IsNullOrEmpty(p)) return p;
+                } catch { }
+            }
+        } catch { }
+        return null;
+    }
+
+    private static string ExtractImageFromDoc(dynamic doc) {
+        if (doc == null) return null;
+        try {
+            var focused = doc.FocusedItem;
+            if (focused != null) {
+                string path = (string)focused.Path;
+                if (!string.IsNullOrEmpty(path) && File.Exists(path)) {
+                    string ext = Path.GetExtension(path);
+                    if (_imageExts.Contains(ext)) return path;
+                }
+            }
+        } catch { }
+
+        try {
+            var selected = doc.SelectedItems();
+            if (selected != null && selected.Count > 0) {
+                foreach (var item in selected) {
+                    string path = (string)item.Path;
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path)) {
+                        string ext = Path.GetExtension(path);
+                        if (_imageExts.Contains(ext)) return path;
+                    }
+                }
             }
         } catch { }
         return null;
@@ -147,9 +213,4 @@ public class DragListener {
 }
 "@ -ReferencedAssemblies System.Core, Microsoft.CSharp
 
-$sample = Join-Path $PSScriptRoot "..\resources\sample.jpg"
-if (Test-Path $sample) {
-    $sample = (Resolve-Path $sample).Path
-}
-
-[DragListener]::Run($sample)
+[DragListener]::Run()
