@@ -46,12 +46,18 @@ export default function App(): React.ReactElement {
         message: `Done!`,
         subMessage: payload.sizeInfo || payload.outputPath.split('\\').pop()
       })
+      setTimeout(() => {
+        api.dismiss()
+      }, 3500)
     })
 
     const cleanError = api.onError((payload: ErrorPayload) => {
       setWheelState('hidden')
       setProcessingAction(null)
       showToast({ type: 'error', message: 'Error', subMessage: payload.message })
+      setTimeout(() => {
+        api.dismiss()
+      }, 3500)
     })
 
     const cleanHide = api.onHide(() => {

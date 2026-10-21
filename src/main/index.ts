@@ -216,8 +216,15 @@ function registerIpcHandlers(): void {
         outputPath: result.outputPath,
         sizeInfo: result.sizeInfo
       })
-      shell.showItemInFolder(result.outputPath)
+
+      // Immediately release mouse events so desktop is never blocked
+      disableMouseOnOverlay()
+
+      if (result.outputPath) {
+        shell.openPath(result.outputPath)
+      }
     } catch (err) {
+      disableMouseOnOverlay()
       overlayWin?.webContents.send(IPC.OVERLAY_ERROR, { message: String(err) })
     }
   })
@@ -225,6 +232,7 @@ function registerIpcHandlers(): void {
   // Popup cancelled
   ipcMain.on(IPC.POPUP_CANCEL, () => {
     hidePopup()
+    disableMouseOnOverlay()
   })
 
   // Hub actions
@@ -262,10 +270,15 @@ async function processImmediate(action: ActionId, filePath: string): Promise<voi
       outputPath: result.outputPath,
       sizeInfo: result.sizeInfo
     })
-    if (action !== 'edit' && action !== 'copy') {
-      shell.showItemInFolder(result.outputPath)
+
+    // Immediately release mouse events so desktop is never blocked
+    disableMouseOnOverlay()
+
+    if (action !== 'edit' && action !== 'copy' && result.outputPath) {
+      shell.openPath(result.outputPath)
     }
   } catch (err) {
+    disableMouseOnOverlay()
     overlayWin?.webContents.send(IPC.OVERLAY_ERROR, { message: String(err) })
   }
 }

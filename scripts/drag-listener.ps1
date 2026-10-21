@@ -67,9 +67,9 @@ public class DragListener {
                         SendTrigger(filePath, pt.X, pt.Y);
                     }
 
-                    // Debounce: wait while Tab is held down
-                    while ((GetAsyncKeyState(0x09) & 0x8000) != 0) {
-                        Thread.Sleep(10);
+                    // Wait until the current drag gesture finishes (Left Mouse Button is released)
+                    while ((GetAsyncKeyState(0x01) & 0x8000) != 0) {
+                        Thread.Sleep(15);
                     }
                 } else {
                     Thread.Sleep(5);

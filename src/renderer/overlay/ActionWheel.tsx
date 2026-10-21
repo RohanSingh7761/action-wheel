@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import WheelSegment from './WheelSegment'
 import CenterPreview from './CenterPreview'
@@ -56,31 +56,92 @@ export default function ActionWheel({
   onDismiss
 }: ActionWheelProps): React.ReactElement {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const hoveredIndexRef = useRef<number | null>(null)
+  hoveredIndexRef.current = hoveredIndex
 
-  // Clamp position so wheel never goes off screen
   const wheelSize = (OUTER_R + 16) * 2
   const halfSize = wheelSize / 2
-  const cx = Math.max(halfSize, Math.min(triggerData.cursorX, window.innerWidth - halfSize))
-  const cy = Math.max(halfSize, Math.min(triggerData.cursorY, window.innerHeight - halfSize))
 
-  const handleSegmentClick = useCallback(async (action: ActionId, filePath: string) => {
-    if (isProcessing) return
-    const api = (window as any).overlayAPI
-    if (!api) return
-    try {
-      await api.selectAction({ action, filePath })
-    } catch (err) {
-      console.error('selectAction error:', err)
+  // ── Lock the wheel position permanently at initial trigger coordinates ──
+  const centerPos = useRef({
+    cx: Math.max(halfSize, Math.min(triggerData.cursorX, window.innerWidth - halfSize)),
+    cy: Math.max(halfSize, Math.min(triggerData.cursorY, window.innerHeight - halfSize))
+  })
+  const { cx, cy } = centerPos.current
+
+  const handleSegmentClick = useCallback(
+    async (action: ActionId, filePath: string) => {
+      if (isProcessing) return
+      const api = (window as any).overlayAPI
+      if (!api) return
+      try {
+        await api.selectAction({ action, filePath })
+      } catch (err) {
+        console.error('selectAction error:', err)
+      }
+    },
+    [isProcessing]
+  )
+
+  // ── Global pointer tracking for both MouseMove and DragOver ──
+  useEffect(() => {
+    const checkAngle = (clientX: number, clientY: number): number | null => {
+      const dx = clientX - cx
+      const dy = clientY - cy
+      const dist = Math.sqrt(dx * dx + dy * dy)
+
+      if (dist >= INNER_R * 0.6 && dist <= OUTER_R + 60) {
+        const rad = Math.atan2(dy, dx)
+        const deg = ((rad * 180) / Math.PI + 90 + 360) % 360
+        const segAngle = 360 / TOTAL_SEGMENTS
+        return Math.floor(deg / segAngle) % TOTAL_SEGMENTS
+      }
+      return null
     }
-  }, [isProcessing])
+
+    const onPointerMove = (e: MouseEvent | DragEvent) => {
+      e.preventDefault()
+      const idx = checkAngle(e.clientX, e.clientY)
+      setHoveredIndex(idx)
+    }
+
+    const onPointerRelease = (e: MouseEvent | DragEvent) => {
+      e.preventDefault()
+      const idx = checkAngle(e.clientX, e.clientY)
+      if (idx !== null) {
+        const action = ACTIONS[idx]
+        if (action) {
+          handleSegmentClick(action.id, triggerData.filePath)
+        }
+      } else {
+        onDismiss()
+      }
+    }
+
+    // Window events handle both standard mouse and OS file drag
+    window.addEventListener('mousemove', onPointerMove)
+    window.addEventListener('dragover', onPointerMove)
+    window.addEventListener('mouseup', onPointerRelease)
+    window.addEventListener('drop', onPointerRelease)
+
+    return () => {
+      window.removeEventListener('mousemove', onPointerMove)
+      window.removeEventListener('dragover', onPointerMove)
+      window.removeEventListener('mouseup', onPointerRelease)
+      window.removeEventListener('drop', onPointerRelease)
+    }
+  }, [cx, cy, handleSegmentClick, onDismiss, triggerData.filePath])
 
   // Click outside wheel = dismiss
-  const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement
-    if (target.id === 'wheel-backdrop') {
-      onDismiss()
-    }
-  }, [onDismiss])
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement
+      if (target.id === 'wheel-backdrop') {
+        onDismiss()
+      }
+    },
+    [onDismiss]
+  )
 
   return (
     <motion.div
@@ -101,7 +162,7 @@ export default function ActionWheel({
         }}
       />
 
-      {/* The Wheel */}
+      {/* The Wheel — Fixed at (cx, cy) */}
       <motion.div
         className="absolute"
         style={{
@@ -155,7 +216,7 @@ export default function ActionWheel({
           </g>
         </svg>
 
-        {/* Center preview circle (absolutely positioned) */}
+        {/* Center preview circle */}
         <div
           className="absolute"
           style={{
