@@ -312,6 +312,9 @@ function startHookDaemon(): void {
   if (finalPath) {
     try {
       hookProcess = spawn(`"${finalPath}"`, [], { shell: true, windowsHide: true })
+      hookProcess.on('error', (err) => {
+        console.warn('[daemon] Hook process blocked by antivirus or missing:', err.message)
+      })
       hookProcess.stdout?.on('data', (d) => console.log(`[daemon] ${d.toString().trim()}`))
       hookProcess.stderr?.on('data', (d) => console.error(`[daemon error] ${d.toString().trim()}`))
       console.log(`[daemon] Spawned native drag-hook.exe (PID: ${hookProcess.pid})`)
