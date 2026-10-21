@@ -63,7 +63,6 @@ export default function WheelSegment({
         transition={{ type: 'spring', stiffness: 600, damping: 35 }}
         onMouseEnter={onHover}
         onMouseLeave={onLeave}
-        onClick={onClick}
       />
 
       {/* Glow ring on hover */}

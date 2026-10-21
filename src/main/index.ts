@@ -271,29 +271,45 @@ function registerIpcHandlers(): void {
   })
 }
 
+let isProcessingImmediate = false
+
 async function processImmediate(action: ActionId, filePath: string): Promise<void> {
+  if (isProcessingImmediate) return
+  isProcessingImmediate = true
+
   const overlayWin = getOverlayWindow()
   overlayWin?.webContents.send(IPC.OVERLAY_PROCESSING, { action })
 
   try {
     const result = await processAction(action, filePath)
+    console.log(`[process] Action ${action} succeeded for ${filePath} -> ${result.outputPath}`)
+
     overlayWin?.webContents.send(IPC.OVERLAY_DONE, {
       action,
       outputPath: result.outputPath,
       sizeInfo: result.sizeInfo
     })
 
-    // Immediately release mouse events so desktop is never blocked
+    // Immediately hide wheel and release mouse events so desktop is completely unblocked
+    hideOverlay()
     disableMouseOnOverlay()
     broadcastWs({ type: 'WHEEL_CLOSED' })
 
-    if (action !== 'edit' && action !== 'copy' && result.outputPath) {
-      shell.openPath(result.outputPath)
+    if (action !== 'copy' && result.outputPath) {
+      console.log(`[shell] Opening output file: ${result.outputPath}`)
+      const openErr = await shell.openPath(result.outputPath)
+      if (openErr) {
+        console.warn(`[shell] Open path warning: ${openErr}`)
+      }
     }
   } catch (err) {
+    console.error(`[process] Action ${action} failed:`, err)
+    hideOverlay()
     disableMouseOnOverlay()
     broadcastWs({ type: 'WHEEL_CLOSED' })
     overlayWin?.webContents.send(IPC.OVERLAY_ERROR, { message: String(err) })
+  } finally {
+    isProcessingImmediate = false
   }
 }
 

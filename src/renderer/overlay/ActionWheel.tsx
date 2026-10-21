@@ -24,8 +24,9 @@ function polarToCart(angleDeg: number, r: number) {
 
 function segmentPath(index: number, total: number, innerR: number, outerR: number): string {
   const degPerSeg = 360 / total
-  const startDeg = index * degPerSeg + GAP_DEG / 2
-  const endDeg = (index + 1) * degPerSeg - GAP_DEG / 2
+  const offset = -degPerSeg / 2 // Centers segment 0 at 12 o'clock (0°)
+  const startDeg = index * degPerSeg + offset + GAP_DEG / 2
+  const endDeg = (index + 1) * degPerSeg + offset - GAP_DEG / 2
   const largeArc = endDeg - startDeg > 180 ? 1 : 0
 
   const s1 = polarToCart(startDeg, innerR)
@@ -45,7 +46,8 @@ function segmentPath(index: number, total: number, innerR: number, outerR: numbe
 function labelPosition(index: number, total: number): { x: number; y: number } {
   const midR = (INNER_R + OUTER_R) / 2
   const degPerSeg = 360 / total
-  const midDeg = index * degPerSeg + degPerSeg / 2
+  const offset = -degPerSeg / 2
+  const midDeg = index * degPerSeg + offset + degPerSeg / 2
   return polarToCart(midDeg, midR)
 }
 
@@ -56,8 +58,7 @@ export default function ActionWheel({
   onDismiss
 }: ActionWheelProps): React.ReactElement {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const hoveredIndexRef = useRef<number | null>(null)
-  hoveredIndexRef.current = hoveredIndex
+  const isSubmittingRef = useRef(false)
 
   const wheelSize = (OUTER_R + 16) * 2
   const halfSize = wheelSize / 2
@@ -71,13 +72,18 @@ export default function ActionWheel({
 
   const handleSegmentClick = useCallback(
     async (action: ActionId, filePath: string) => {
-      if (isProcessing) return
+      if (isProcessing || isSubmittingRef.current) return
+      isSubmittingRef.current = true
       const api = (window as any).overlayAPI
       if (!api) return
       try {
         await api.selectAction({ action, filePath })
       } catch (err) {
         console.error('selectAction error:', err)
+      } finally {
+        setTimeout(() => {
+          isSubmittingRef.current = false
+        }, 600)
       }
     },
     [isProcessing]
@@ -104,8 +110,9 @@ export default function ActionWheel({
 
       if (dist >= INNER_R * 0.6 && dist <= OUTER_R + 60) {
         const rad = Math.atan2(dy, dx)
-        const deg = ((rad * 180) / Math.PI + 90 + 360) % 360
         const segAngle = 360 / TOTAL_SEGMENTS
+        // Offset by +segAngle/2 to align with centered segment 0
+        const deg = ((rad * 180) / Math.PI + 90 + segAngle / 2 + 360) % 360
         return Math.floor(deg / segAngle) % TOTAL_SEGMENTS
       }
       return null
@@ -222,7 +229,6 @@ export default function ActionWheel({
                 isProcessing={isProcessing && processingAction === action.id}
                 onHover={() => setHoveredIndex(i)}
                 onLeave={() => setHoveredIndex(null)}
-                onClick={() => handleSegmentClick(action.id, triggerData.filePath)}
               />
             ))}
           </g>
