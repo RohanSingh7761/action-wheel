@@ -233,31 +233,41 @@ public class DragListener {
     private static string ExtractPhotoFromDoc(dynamic doc) {
         if (doc == null) return null;
 
-        // Check selected items first (the items actively being dragged)
+        // Check selected items (the items actively being dragged)
         try {
             var selected = doc.SelectedItems();
-            if (selected != null && selected.Count > 0) {
-                foreach (var item in selected) {
-                    string path = (string)item.Path;
-                    if (!string.IsNullOrEmpty(path)) {
-                        string ext = Path.GetExtension(path);
-                        // If it's a video, explicitly reject!
-                        if (_videoExts.Contains(ext)) {
-                            Console.WriteLine("[listener] Item is a video (" + ext + "), rejecting: " + path);
-                            return null;
-                        }
-                        // If it's a photo, accept!
-                        if (_photoExts.Contains(ext) && File.Exists(path)) {
-                            return path;
+            if (selected != null) {
+                int count = selected.Count;
+                // If multiple objects are selected, DO NOT activate the wheel
+                if (count > 1) {
+                    Console.WriteLine("[listener] Multiple items selected (" + count + "), ignoring.");
+                    return null;
+                }
+                if (count == 1) {
+                    foreach (var item in selected) {
+                        string path = (string)item.Path;
+                        if (!string.IsNullOrEmpty(path)) {
+                            string ext = Path.GetExtension(path);
+                            // If it's a video, explicitly reject!
+                            if (_videoExts.Contains(ext)) {
+                                Console.WriteLine("[listener] Item is a video (" + ext + "), rejecting: " + path);
+                                return null;
+                            }
+                            // If it's a photo, accept!
+                            if (_photoExts.Contains(ext) && File.Exists(path)) {
+                                return path;
+                            }
                         }
                     }
+                    // Selected single item was not a photo (e.g. folder, doc, pdf, zip)
+                    return null;
                 }
-                // Selected item was not a photo (e.g. folder, doc, pdf, zip)
+                // If count == 0 (e.g. lassoing empty space)
                 return null;
             }
         } catch { }
 
-        // Check focused item
+        // Fallback to focused item only if SelectedItems was inaccessible
         try {
             var focused = doc.FocusedItem;
             if (focused != null) {
