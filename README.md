@@ -270,10 +270,9 @@ action-wheel/
 │   ├── main/               # Electron main process
 │   │   ├── index.ts        # App lifecycle, WebSocket server & daemon spawner
 │   │   ├── processor/      # Sharp & pdf-lib action processing pipelines
-│   │   └── windows/        # Overlay, Popup, and Hub window controllers
+│   │   └── windows/        # Overlay and Popup window controllers
 │   ├── preload/            # Context-isolated IPC preload scripts
 │   ├── renderer/           # React 18 UI
-│   │   ├── hub/            # Control hub / drop-zone window
 │   │   ├── overlay/        # Radial Action Wheel & toast notifications
 │   │   ├── popup/          # Convert, Crop, and Compress parameter modals
 │   │   └── shared/         # Precision Lucide-style SVG icon system

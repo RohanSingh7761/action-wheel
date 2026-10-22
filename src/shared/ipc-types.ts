@@ -74,14 +74,7 @@ export const IPC = {
   // Popup → Main
   POPUP_CONFIRM: 'popup:confirm',           // invoke → void
   POPUP_CANCEL: 'popup:cancel',             // notify
-  IMAGE_LOAD_PREVIEW: 'image:load-preview', // invoke → { dataUrl, width, height }
-
-  // Hub → Main
-  HUB_TRIGGER_DEMO: 'hub:trigger-demo',
-  HUB_SELECT_FILE: 'hub:select-file',
-  HUB_DROP_FILE: 'hub:drop-file',
-  HUB_MINIMIZE: 'hub:minimize',
-  HUB_QUIT: 'hub:quit'
+  IMAGE_LOAD_PREVIEW: 'image:load-preview'  // invoke → { dataUrl, width, height }
 } as const
 
 // ─── Payload Types ────────────────────────────────────────────────────────────

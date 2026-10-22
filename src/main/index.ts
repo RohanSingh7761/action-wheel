@@ -47,13 +47,6 @@ import {
   hidePopup
 } from './windows/popup'
 
-import {
-  createHubWindow,
-  getHubWindow,
-  showHub,
-  hideHub
-} from './windows/hub'
-
 import { processAction } from './processor/index'
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -142,15 +135,12 @@ function createTraySafe(): void {
     tray = new Tray(icon)
     const menu = Menu.buildFromTemplate([
       { label: '🌀 Action Wheel', enabled: false },
-      { type: 'separator' },
-      { label: 'Open Hub', click: () => showHub() },
+      { label: 'Drag photo + press Tab', enabled: false },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() }
     ])
-    tray.setToolTip('Action Wheel — Image Tools')
+    tray.setToolTip('Action Wheel — Drag photo + press Tab')
     tray.setContextMenu(menu)
-    tray.on('click', () => showHub())
-    tray.on('double-click', () => showHub())
   } catch (err) {
     console.warn('[tray] System tray creation error:', err)
   }
@@ -165,8 +155,7 @@ export async function triggerDemoWheel(): Promise<void> {
 }
 
 export async function triggerWithFilePicker(): Promise<void> {
-  const hubWin = getHubWindow()
-  const result = await dialog.showOpenDialog(hubWin ?? undefined, {
+  const result = await dialog.showOpenDialog({
     title: 'Select Image for Action Wheel',
     filters: [
       { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'avif', 'svg'] }
@@ -315,29 +304,6 @@ function registerIpcHandlers(): void {
       console.error('[preview] Error generating preview for crop:', err)
       return null
     }
-  })
-
-  // Hub actions
-  ipcMain.on(IPC.HUB_TRIGGER_DEMO, () => {
-    triggerDemoWheel()
-  })
-
-  ipcMain.on(IPC.HUB_SELECT_FILE, () => {
-    triggerWithFilePicker()
-  })
-
-  ipcMain.on(IPC.HUB_DROP_FILE, (_e, filePath: string) => {
-    const cursor = screen.getCursorScreenPoint()
-    triggerWheel(filePath, cursor.x, cursor.y)
-  })
-
-  ipcMain.on(IPC.HUB_MINIMIZE, () => {
-    const hub = getHubWindow()
-    hub?.minimize()
-  })
-
-  ipcMain.on(IPC.HUB_QUIT, () => {
-    app.quit()
   })
 }
 
@@ -536,7 +502,7 @@ if (!gotTheLock) {
 }
 
 app.on('second-instance', () => {
-  showHub()
+  // Already running in background
 })
 
 app.whenReady().then(async () => {
@@ -551,9 +517,6 @@ app.whenReady().then(async () => {
 
   // 2. Create options popup window (hidden until an action needing params is selected)
   createPopupWindow()
-
-  // 3. Create and show Hub window
-  createHubWindow()
 
   registerIpcHandlers()
   const port = await startHookServer()

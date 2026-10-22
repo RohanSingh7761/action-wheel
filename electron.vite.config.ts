@@ -17,8 +17,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           overlay: resolve(__dirname, 'src/preload/overlay.ts'),
-          popup: resolve(__dirname, 'src/preload/popup.ts'),
-          hub: resolve(__dirname, 'src/preload/hub.ts')
+          popup: resolve(__dirname, 'src/preload/popup.ts')
         }
       }
     }
@@ -36,8 +35,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           overlay: resolve(__dirname, 'src/renderer/overlay/index.html'),
-          popup: resolve(__dirname, 'src/renderer/popup/index.html'),
-          hub: resolve(__dirname, 'src/renderer/hub/index.html')
+          popup: resolve(__dirname, 'src/renderer/popup/index.html')
         }
       }
     }
