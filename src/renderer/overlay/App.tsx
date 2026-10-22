@@ -87,7 +87,7 @@ export default function App(): React.ReactElement {
       <AnimatePresence>
         {(wheelState === 'visible' || wheelState === 'processing') && triggerData && (
           <ActionWheel
-            key="wheel"
+            key={`wheel-${triggerData.timestamp || Date.now()}-${triggerData.cursorX}-${triggerData.cursorY}`}
             triggerData={triggerData}
             isProcessing={wheelState === 'processing'}
             processingAction={processingAction}

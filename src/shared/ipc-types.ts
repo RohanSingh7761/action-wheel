@@ -90,6 +90,7 @@ export interface TriggerPayload {
   filePath: string
   cursorX: number
   cursorY: number
+  timestamp?: number
   /** base64 thumbnail, max 120x120 */
   thumbnail?: string
 }

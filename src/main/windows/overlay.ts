@@ -5,7 +5,7 @@ import { is } from '@electron-toolkit/utils'
 let overlayWin: BrowserWindow | null = null
 
 export function createOverlayWindow(): BrowserWindow {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+  const { width, height } = screen.getPrimaryDisplay().bounds
 
   overlayWin = new BrowserWindow({
     width,
@@ -49,6 +49,8 @@ export function getOverlayWindow(): BrowserWindow | null {
 
 export function showOverlay(): void {
   if (!overlayWin) return
+  const { width, height } = screen.getPrimaryDisplay().bounds
+  overlayWin.setBounds({ x: 0, y: 0, width, height })
   overlayWin.setAlwaysOnTop(true, 'screen-saver')
   overlayWin.show()
   overlayWin.moveTop()

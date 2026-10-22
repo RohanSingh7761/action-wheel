@@ -64,12 +64,9 @@ export default function ActionWheel({
   const wheelSize = (OUTER_R + 16) * 2
   const halfSize = wheelSize / 2
 
-  // Lock the wheel position permanently at initial trigger coordinates with boundary safety
-  const centerPos = useRef({
-    cx: Math.max(halfSize, Math.min(triggerData.cursorX, window.innerWidth - halfSize)),
-    cy: Math.max(halfSize, Math.min(triggerData.cursorY, window.innerHeight - halfSize))
-  })
-  const { cx, cy } = centerPos.current
+  // Position the wheel centered at trigger coordinates with screen boundary safety
+  const cx = Math.max(halfSize, Math.min(triggerData.cursorX, window.innerWidth - halfSize))
+  const cy = Math.max(halfSize, Math.min(triggerData.cursorY, window.innerHeight - halfSize))
 
   const handleSegmentClick = useCallback(
     async (action: ActionId, filePath: string) => {

@@ -160,7 +160,13 @@ export async function triggerWheel(filePath: string, cursorX: number, cursorY: n
   showOverlay()
   broadcastWs({ type: 'WHEEL_OPENED' })
 
-  const payload: TriggerPayload = { filePath, cursorX, cursorY, thumbnail }
+  const payload: TriggerPayload = {
+    filePath,
+    cursorX,
+    cursorY,
+    timestamp: Date.now(),
+    thumbnail
+  }
   overlayWin.webContents.send(IPC.OVERLAY_TRIGGER, payload)
 }
 
@@ -354,8 +360,11 @@ function startHookServer(): void {
           const msg = JSON.parse(raw.toString())
           if (msg.type === 'DRAG_TAB') {
             const { filePath, cursorX, cursorY } = msg
-            console.log(`[hook] Trigger from native hook: ${filePath} at (${cursorX}, ${cursorY})`)
-            await triggerWheel(filePath, cursorX, cursorY)
+            const cur = screen.getCursorScreenPoint()
+            const finalX = cur ? cur.x : cursorX
+            const finalY = cur ? cur.y : cursorY
+            console.log(`[hook] Trigger from native hook: ${filePath} at (${finalX}, ${finalY})`)
+            await triggerWheel(filePath, finalX, finalY)
           } else if (msg.type === 'DISMISS') {
             console.log('[hook] Dismiss request from native hook')
             hideWheel()
