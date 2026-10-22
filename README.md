@@ -2,16 +2,37 @@
 
 <div align="center">
 
-**A production-grade, premium Windows desktop utility for rapid image actions.**  
+**A production-grade, lightning-fast radial image utility for Windows 10 & 11.**  
 *Drag or select any image, press <kbd>Tab</kbd>, and execute high-speed image workflows right under your cursor.*
 
+[![GitHub Release](https://img.shields.io/github/v/release/RohanSingh7761/action-wheel?style=flat-square&color=6366f1&label=Release)](https://github.com/RohanSingh7761/action-wheel/releases)
+[![Platform](https://img.shields.io/badge/Platform-Windows_10_%2F_11_(x64)-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
 [![Electron](https://img.shields.io/badge/Electron-31.6.0-47848F?style=flat-square&logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Sharp](https://img.shields.io/badge/Sharp-0.33.5-99CC00?style=flat-square&logo=node.js&logoColor=white)](https://sharp.pixelplumbing.com/)
-[![Platform](https://img.shields.io/badge/Platform-Windows_10_%2F_11-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![Sharp](https://img.shields.io/badge/Sharp-0.33.5_(libvips)-99CC00?style=flat-square&logo=node.js&logoColor=white)](https://sharp.pixelplumbing.com/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+
+<br />
+
+<p align="center">
+  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.0.exe">
+    <img src="https://img.shields.io/badge/Download_Installer-Windows_64--bit_(.exe)-6366f1?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Installer" height="38">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.0.exe">
+    <img src="https://img.shields.io/badge/Download_Portable-Standalone_(.exe)-374151?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Exe" height="38">
+  </a>
+</p>
+
+<p align="center">
+  <a href="#-download--installation">Download Guide</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-how-to-use">How to Use</a> •
+  <a href="#-developer-setup">Developer Setup</a> •
+  <a href="#%EF%B8%8F-architecture--antivirus-design">Antivirus Architecture</a>
+</p>
 
 </div>
 
@@ -23,6 +44,66 @@
 
 Hover over a segment and release your mouse to execute instant document conversions, format interchanges, interactive photo crops, or lossy/lossless compressions.
 
+- **Zero Clutter:** No windows open until you want them.
+- **Microsecond Response:** Built on libvips multi-threaded image processing.
+- **Native Precision:** Seamlessly detects active files across Windows Desktop and File Explorer via Shell Automation.
+- **False-Positive Free:** Native ahead-of-time compiled C# Win32 background listener that bypasses Windows AMSI and third-party antivirus heuristic blocks.
+
+---
+
+## 📥 Download & Installation
+
+You can get Action Wheel as either a **standard Windows installer** or a **portable standalone executable** (no installation needed).
+
+| Package | Description | Direct Download |
+| :--- | :--- | :--- |
+| **Windows Installer** | Installs to `%LOCALAPPDATA%`, creates Start Menu shortcut, supports auto-updates and clean uninstaller. | [⬇️ **Download Installer (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.0.exe) |
+| **Portable Version** | Single standalone `.exe` you can put in any folder or USB drive. Run directly without installation. | [📦 **Download Portable (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.0.exe) |
+
+> [!NOTE]
+> All releases and changelogs are also hosted on the [GitHub Releases Page](https://github.com/RohanSingh7761/action-wheel/releases).
+
+---
+
+### 🛡️ Windows SmartScreen & Antivirus Guide
+
+Because Action Wheel is a free, community-driven open-source project, the executable is not signed with an enterprise EV (Extended Validation) code signing certificate (which costs hundreds of dollars annually).
+
+#### 1. Windows Defender SmartScreen
+When you first run the downloaded `.exe`, Windows Defender SmartScreen may display:
+> *"Windows protected your PC — Microsoft Defender SmartScreen prevented an unrecognized app from starting."*
+
+**To run the application:**
+1. Click **"More info"** on the popup.
+2. Click **"Run anyway"**.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Windows protected your PC                                   │
+│ Microsoft Defender SmartScreen prevented an unrecognized    │
+│ app from starting. Running this app might put your PC at    │
+│ risk.                                                       │
+│                                                             │
+│ [ More info ]  <── Click here                               │
+│                                           [ Don't run ]     │
+└─────────────────────────────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│ App:    Action-Wheel-Setup-1.0.0.exe                        │
+│ Publisher: Unknown publisher                                │
+│                                                             │
+│ [ Run anyway ] <── Click here             [ Don't run ]     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 2. Antivirus (McAfee, Norton, Defender)
+Earlier experimental versions of the drag detector relied on dynamic PowerShell scripts (`powershell.exe -ExecutionPolicy Bypass`), which heuristic antivirus scanners (like McAfee AMSI) occasionally flagged as suspicious script activity.
+
+**In v1.0.0, this is completely solved:**
+- We eliminated all runtime PowerShell script generation.
+- The background hook is compiled ahead-of-time into a clean, 15 KB native Win32 executable (`resources/drag-listener.exe`).
+- All code is 100% open-source and auditable right here in the repository.
+
 ---
 
 ## ✨ Features
@@ -31,23 +112,25 @@ Hover over a segment and release your mouse to execute instant document conversi
 - Instantly packages the target image into a single-page vector PDF document using `pdf-lib` and `sharp`.
 - Saves the output PDF right alongside the source file with non-destructive naming and automatically launches it in your default system viewer.
 
-### 🔄 Format Conversion
+### 🔄 Format Conversion *(3 o'clock)*
 - Effortlessly transcode images across modern formats: **WebP**, **PNG**, **JPG**, **AVIF**, and **TIFF**.
-- Includes a fine-tuned encoding quality slider with automatic lossless handling for PNG outputs.
-- Displays destination filename previews in real time.
+- Fine-tuned encoding quality slider with automatic lossless handling for PNG outputs.
+- Displays destination filename and size previews in real time.
 
-### ✂️ Interactive Visual Crop
-- Renders the image inside a dedicated canvas with **draggable and resizable 8-point bounding handles**.
+### ✂️ Interactive Visual Crop *(6 o'clock)*
+- Displays the image inside an interactive canvas with **draggable and resizable 8-point bounding handles**.
 - Interactive rule-of-thirds composition grid with dark background masking.
 - Proportional **Aspect Ratio Presets**: **Freeform**, **1:1 Square**, **16:9 Wide**, and **4:3 Standard**.
 - Calculates sub-pixel coordinates mapped back to the original image's full resolution.
 
-### 🗜️ Smart Image Compression
-- Features one-click tactile presets: **High (90%)**, **Balanced (75%)**, **Small (50%)**, and **Tiny (30%)**.
+### 🗜️ Smart Image Compression *(9 o'clock)*
+- One-click tactile presets: **High (90%)**, **Balanced (75%)**, **Small (50%)**, and **Tiny (30%)**.
 - Precision quality slider with live estimated file size reduction metrics (e.g. `~35%`, `~55%`, `~75%`).
 
-### ✕ Zero-Latency Dismissal
-- Releasing outside the wheel, clicking the center disk / cancel pill, or pressing <kbd>Esc</kbd> or <kbd>Tab</kbd> dismisses the wheel instantly without modifying your filesystem.
+### 🛡️ Smart Gesture Protection
+- **Single-Image Only:** If multiple files are selected or dragged simultaneously, Action Wheel remains dormant to prevent accidental batch processing.
+- **Image-Only Filtering:** Non-image files (videos, documents, archives) are automatically filtered out.
+- **Zero-Latency Dismissal:** Releasing outside the wheel, clicking the center cancel pill, or pressing <kbd>Esc</kbd> or <kbd>Tab</kbd> dismisses the wheel instantly without modifying your filesystem.
 
 ---
 
@@ -61,19 +144,35 @@ Inspired by the restraint of **Raycast**, the precision of **Linear**, and **Win
 
 ---
 
-## 🏗️ Architecture & How It Works
+## 📖 How to Use
+
+1. Launch Action Wheel (it runs quietly in your background and system tray).
+2. **Trigger the Wheel:**
+   - **Method A (Drag gesture):** Click and hold any image file on your Desktop or in File Explorer, drag slightly, and press <kbd>Tab</kbd>.
+   - **Method B (Selection):** Click/select any image file and tap <kbd>Tab</kbd>.
+3. Move your cursor into one of the four quadrants:
+   - **Top (12 o'clock):** `To PDF`
+   - **Right (3 o'clock):** `Convert Format`
+   - **Bottom (6 o'clock):** `Crop Image`
+   - **Left (9 o'clock):** `Compress Image`
+4. Release the mouse button over your desired segment to execute.
+5. Tap <kbd>Esc</kbd> or <kbd>Tab</kbd> at any point to dismiss without performing any action.
+
+---
+
+## 🏗️ Architecture & Antivirus Design
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as User (Desktop / Explorer)
-    participant Hook as Background Win32 Hook (.ps1)
+    participant Hook as Native Win32 Hook (drag-listener.exe)
     participant Main as Electron Main Process
     participant Wheel as Radial Wheel Overlay
     participant Engine as Sharp / pdf-lib Engine
 
     User->>Hook: Drag image or select image + Press Tab
-    Hook->>Hook: Query Windows Shell Automation & GetCursorPos()
+    Hook->>Hook: Shell COM Query (Single image validation) & GetCursorPos()
     Hook->>Main: Loopback WebSocket (ws://127.0.0.1:39217)
     Main->>Wheel: Show transparent overlay anchored at cursor (cx, cy)
     User->>Wheel: Hover over quadrant & release mouse
@@ -90,11 +189,10 @@ sequenceDiagram
     end
 ```
 
-1. **Native OS Interception:** A background process ([`scripts/drag-listener.ps1`](scripts/drag-listener.ps1)) monitors global input state via Win32 `GetAsyncKeyState`.
-2. **Shell Resolution:** When <kbd>Tab</kbd> is triggered, it queries the Windows Shell COM Automation API (`Shell.Application`) to inspect focused items on Desktop or active Explorer windows.
-3. **IPC Bridge:** Dispatches coordinate and file metadata over a local loopback WebSocket server to Electron.
-4. **Renderer Overlay:** Spawns a frameless, screen-saver-level transparent canvas locked to the exact cursor coordinates.
-5. **High-Speed Processing:** Dispatches operations to libvips-backed `sharp` and `pdf-lib` worker threads.
+### Why It Doesn't Trigger Antivirus Heuristics
+1. **Pre-compiled Win32 Executable:** Rather than invoking hidden PowerShell processes with `-ExecutionPolicy Bypass` at runtime, the background listener is compiled into `resources/drag-listener.exe` using Microsoft's standard .NET `csc.exe` with the `/target:winexe` subsystem.
+2. **Strict Loopback Communication:** All IPC communication between the background hook and Electron uses an unexposed local loopback WebSocket bound solely to `127.0.0.1`.
+3. **No DLL Injections:** Does not use invasive kernel hooks or global Windows API hooks (`SetWindowsHookEx`), ensuring total system stability and anti-cheat compatibility.
 
 ---
 
@@ -108,56 +206,53 @@ sequenceDiagram
 | **Core Image Engine** | [`sharp`](https://sharp.pixelplumbing.com/) (High-performance libvips) |
 | **PDF Generation** | [`pdf-lib`](https://pdf-lib.js.org/) |
 | **Interactive Crop** | [`react-image-crop`](https://github.com/DominicTobias/react-image-crop) |
-| **OS Automation** | C# P/Invoke via in-memory PowerShell + Windows Shell COM API |
-| **Inter-Process Comm.** | Localhost [WebSocket](https://github.com/websockets/ws) (`127.0.0.1:39217`) + Electron `ipcMain`/`ipcRenderer` |
+| **Native Background Hook** | Compiled Win32 C# daemon (`drag-listener.exe`) + Windows Shell COM API |
+| **Packaging & Distribution**| [`electron-builder`](https://www.electron.build/) (NSIS Installer & Standalone Portable EXE) |
 
 ---
 
-## 🚀 Getting Started
+## 💻 Developer Setup
+
+Want to run Action Wheel from source or contribute? Follow these steps:
 
 ### Prerequisites
 - **Windows 10 / 11** (64-bit)
 - **Node.js**: v18.0.0 or higher
 - **npm** or **pnpm**
+- **Git**
 
-### Installation
+### 1. Clone the repository
+```bash
+git clone https://github.com/RohanSingh7761/action-wheel.git
+cd action-wheel
+```
 
-1. **Clone the repository:**
-   ```powershell
-   git clone https://github.com/RohanSingh7761/action-wheel.git
-   cd action-wheel
-   ```
+### 2. Install dependencies
+```bash
+npm install
+```
 
-2. **Install dependencies:**
-   ```powershell
-   npm install
-   ```
+### 3. Start development mode
+```bash
+npm run dev
+```
+This starts the Vite dev server and launches Electron with hot-reloading. You can test gestures immediately!
 
-3. **Start development mode:**
-   ```powershell
-   npm run dev
-   ```
+### 4. (Optional) Recompile Native C# Hook
+The pre-compiled native listener is already bundled in `resources/drag-listener.exe`. If you modify `scripts/drag-listener.cs`, recompile it with:
+```bash
+npm run compile:listener
+```
+*(Uses the standard built-in Windows .NET Framework 4.0 `csc.exe` compiler — no external SDK needed!)*
 
-4. **Build production binaries:**
-   ```powershell
-   npm run build
-   ```
-
----
-
-## 📖 How to Use
-
-1. Launch Action Wheel with `npm run dev` (it will initialize silently in your background and tray).
-2. **Trigger the Wheel:**
-   - **Method A (Drag gesture):** Click and hold any image file on your Desktop or in File Explorer, drag slightly, and press <kbd>Tab</kbd>.
-   - **Method B (Selection):** Click/select any image file and tap <kbd>Tab</kbd>.
-3. Move your cursor into one of the four quadrants:
-   - **Top (12 o'clock):** `To PDF`
-   - **Right (3 o'clock):** `Convert Format`
-   - **Bottom (6 o'clock):** `Crop Image`
-   - **Left (9 o'clock):** `Compress Image`
-4. Release the mouse button over your desired segment to execute.
-5. Tap <kbd>Esc</kbd> or <kbd>Tab</kbd> at any point to dismiss without performing any action.
+### 5. Build Distribution Binaries
+To compile both the **NSIS Installer** and **Standalone Portable Executable**:
+```bash
+npm run build:win
+```
+The resulting executables will be output to the `dist/` directory:
+- `dist/Action Wheel Setup 1.0.0.exe` (Installer)
+- `dist/Action Wheel 1.0.0.exe` (Portable)
 
 ---
 
@@ -165,12 +260,15 @@ sequenceDiagram
 
 ```
 action-wheel/
-├── resources/              # App icons and sample assets
+├── resources/
+│   ├── icon.png            # 256x256 high-resolution application icon
+│   └── drag-listener.exe   # Compiled 15KB Win32 native drag listener
 ├── scripts/
-│   └── drag-listener.ps1   # Native Win32 drag & shell listener hook
+│   ├── drag-listener.cs    # Source code for native Win32 C# listener hook
+│   └── drag-listener.ps1   # PowerShell reference implementation
 ├── src/
 │   ├── main/               # Electron main process
-│   │   ├── index.ts        # App entry, WebSocket server & daemon spawner
+│   │   ├── index.ts        # App lifecycle, WebSocket server & daemon spawner
 │   │   ├── processor/      # Sharp & pdf-lib action processing pipelines
 │   │   └── windows/        # Overlay, Popup, and Hub window controllers
 │   ├── preload/            # Context-isolated IPC preload scripts
@@ -182,9 +280,20 @@ action-wheel/
 │   └── shared/
 │       └── ipc-types.ts    # Single source of truth for IPC channels & actions
 ├── electron.vite.config.ts # electron-vite configuration
-├── package.json
-└── tailwind.config.js
+├── package.json            # Electron builder targets & project metadata
+└── tailwind.config.js      # Custom theme tokens & acrylic styles
 ```
+
+---
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome!
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 

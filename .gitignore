@@ -5,3 +5,4 @@ dist/
 *.log
 hook-daemon/*.exe
 *.exe
+!resources/drag-listener.exe
