@@ -23,6 +23,11 @@ export function createHubWindow(): BrowserWindow {
     }
   })
 
+  hubWin.on('close', (e) => {
+    e.preventDefault()
+    hubWin?.hide()
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     hubWin.loadURL(process.env['ELECTRON_RENDERER_URL'] + '/hub/index.html')
   } else {
@@ -37,6 +42,9 @@ export function getHubWindow(): BrowserWindow | null {
 }
 
 export function showHub(): void {
+  if (!hubWin || hubWin.isDestroyed()) {
+    createHubWindow()
+  }
   if (!hubWin) return
   if (hubWin.isMinimized()) hubWin.restore()
   hubWin.show()

@@ -78,23 +78,67 @@ function broadcastWs(msg: object): void {
   }
 }
 
+function getTrayIcon(): nativeImage {
+  const iconCandidates = [
+    join(process.resourcesPath, 'resources/icon.png'),
+    join(process.resourcesPath, 'icon.png'),
+    join(__dirname, '../../resources/icon.png'),
+    join(app.getAppPath(), 'resources/icon.png')
+  ]
+
+  for (const candidate of iconCandidates) {
+    try {
+      if (existsSync(candidate)) {
+        const img = nativeImage.createFromPath(candidate)
+        if (!img.isEmpty()) {
+          console.log(`[tray] Loaded tray icon from ${candidate}`)
+          return img.resize({ width: 16, height: 16 })
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback: create in-memory crisp 16x16 blue circle
+  const size = 16
+  const buffer = Buffer.alloc(size * size * 4)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = x - 7.5
+      const dy = y - 7.5
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const idx = (y * size + x) * 4
+      if (dist <= 6.5) {
+        buffer[idx] = 99     // R (#6366f1)
+        buffer[idx + 1] = 102 // G
+        buffer[idx + 2] = 241 // B
+        buffer[idx + 3] = dist <= 5.5 ? 255 : Math.round((6.5 - dist) * 255)
+      } else {
+        buffer[idx + 3] = 0
+      }
+    }
+  }
+  console.log('[tray] Generated in-memory blue dot tray icon')
+  return nativeImage.createFromBuffer(buffer, { width: size, height: size })
+}
+
 function getDemoImagePath(): string {
-  const samplePath = join(__dirname, '../../resources/sample.jpg')
-  if (existsSync(samplePath)) return samplePath
-  const altPath = join(app.getAppPath(), 'resources/sample.jpg')
-  if (existsSync(altPath)) return altPath
-  return samplePath
+  const candidates = [
+    join(process.resourcesPath, 'resources/sample.jpg'),
+    join(process.resourcesPath, 'sample.jpg'),
+    join(__dirname, '../../resources/sample.jpg'),
+    join(app.getAppPath(), 'resources/sample.jpg')
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+  return candidates[0]
 }
 
 // ─── System Tray ──────────────────────────────────────────────────────────────
 
 function createTraySafe(): void {
   try {
-    const iconPath = join(__dirname, '../../resources/icon.png')
-    const icon = existsSync(iconPath)
-      ? nativeImage.createFromPath(iconPath)
-      : nativeImage.createEmpty()
-
+    const icon = getTrayIcon()
     tray = new Tray(icon)
     const menu = Menu.buildFromTemplate([
       { label: '🌀 Action Wheel', enabled: false },
@@ -106,8 +150,9 @@ function createTraySafe(): void {
     tray.setToolTip('Action Wheel — Image Tools')
     tray.setContextMenu(menu)
     tray.on('click', () => showHub())
+    tray.on('double-click', () => showHub())
   } catch (err) {
-    console.warn('[tray] System tray creation skipped:', err)
+    console.warn('[tray] System tray creation error:', err)
   }
 }
 
@@ -539,6 +584,9 @@ app.whenReady().then(async () => {
 
   // 2. Create options popup window (hidden until an action needing params is selected)
   createPopupWindow()
+
+  // 3. Create and show Hub window
+  createHubWindow()
 
   registerIpcHandlers()
   const port = await startHookServer()
