@@ -108,22 +108,22 @@ Earlier experimental versions of the drag detector relied on dynamic PowerShell 
 
 ## ✨ Features
 
-### 📄 To PDF *(12 o'clock)*
+### 📄 To PDF *(Top)*
 - Instantly packages the target image into a single-page vector PDF document using `pdf-lib` and `sharp`.
 - Saves the output PDF right alongside the source file with non-destructive naming and automatically launches it in your default system viewer.
 
-### 🔄 Format Conversion *(3 o'clock)*
+### 🔄 Format Conversion *(Right)*
 - Effortlessly transcode images across modern formats: **WebP**, **PNG**, **JPG**, **AVIF**, and **TIFF**.
 - Fine-tuned encoding quality slider with automatic lossless handling for PNG outputs.
 - Displays destination filename and size previews in real time.
 
-### ✂️ Interactive Visual Crop *(6 o'clock)*
+### ✂️ Interactive Visual Crop *(Bottom)*
 - Displays the image inside an interactive canvas with **draggable and resizable 8-point bounding handles**.
 - Interactive rule-of-thirds composition grid with dark background masking.
 - Proportional **Aspect Ratio Presets**: **Freeform**, **1:1 Square**, **16:9 Wide**, and **4:3 Standard**.
 - Calculates sub-pixel coordinates mapped back to the original image's full resolution.
 
-### 🗜️ Smart Image Compression *(9 o'clock)*
+### 🗜️ Smart Image Compression *(Left)*
 - One-click tactile presets: **High (90%)**, **Balanced (75%)**, **Small (50%)**, and **Tiny (30%)**.
 - Precision quality slider with live estimated file size reduction metrics (e.g. `~35%`, `~55%`, `~75%`).
 
@@ -151,10 +151,10 @@ Inspired by the restraint of **Raycast**, the precision of **Linear**, and **Win
    - **Method A (Drag gesture):** Click and hold any image file on your Desktop or in File Explorer, drag slightly, and press <kbd>Tab</kbd>.
    - **Method B (Selection):** Click/select any image file and tap <kbd>Tab</kbd>.
 3. Move your cursor into one of the four quadrants:
-   - **Top (12 o'clock):** `To PDF`
-   - **Right (3 o'clock):** `Convert Format`
-   - **Bottom (6 o'clock):** `Crop Image`
-   - **Left (9 o'clock):** `Compress Image`
+   - **Top:** `To PDF`
+   - **Right:** `Convert Format`
+   - **Bottom:** `Crop Image`
+   - **Left:** `Compress Image`
 4. Release the mouse button over your desired segment to execute.
 5. Tap <kbd>Esc</kbd> or <kbd>Tab</kbd> at any point to dismiss without performing any action.
 
