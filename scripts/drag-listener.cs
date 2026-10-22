@@ -32,10 +32,19 @@ public class DragListener {
     };
 
     private static ClientWebSocket _ws = null;
-    private static readonly Uri _serverUri = new Uri("ws://127.0.0.1:39217");
+    private static int _serverPort = 39217;
+    private static Uri _serverUri {
+        get { return new Uri("ws://127.0.0.1:" + _serverPort); }
+    }
     private static volatile bool _isWheelActive = false;
 
     public static void Main(string[] args) {
+        if (args != null && args.Length > 0) {
+            int p;
+            if (int.TryParse(args[0], out p) && p > 1024 && p < 65535) {
+                _serverPort = p;
+            }
+        }
         Run();
     }
 

@@ -18,6 +18,7 @@ import { is } from '@electron-toolkit/utils'
 import { WebSocketServer, WebSocket } from 'ws'
 import sharp from 'sharp'
 import { spawn, spawnSync, type ChildProcess } from 'child_process'
+import net from 'net'
 
 import {
   IPC,
@@ -348,49 +349,91 @@ function hideWheel(): void {
 
 // ─── WebSocket Server (for Native Hook Daemon) ────────────────────────────────
 
-function startHookServer(): void {
-  try {
-    const wss = new WebSocketServer({ port: 39217, host: '127.0.0.1' })
-    wss.on('connection', (ws: WebSocket) => {
-      console.log('[hook] Native drag hook connected')
-      wsClients.add(ws)
-
-      ws.on('message', async (raw) => {
-        try {
-          const msg = JSON.parse(raw.toString())
-          if (msg.type === 'DRAG_TAB') {
-            const { filePath, cursorX, cursorY } = msg
-            const cur = screen.getCursorScreenPoint()
-            const finalX = cur ? cur.x : cursorX
-            const finalY = cur ? cur.y : cursorY
-            console.log(`[hook] Trigger from native hook: ${filePath} at (${finalX}, ${finalY})`)
-            await triggerWheel(filePath, finalX, finalY)
-          } else if (msg.type === 'DISMISS') {
-            console.log('[hook] Dismiss request from native hook')
-            hideWheel()
-          }
-        } catch (err) {
-          console.error('[hook] Bad message:', err)
+function findAvailablePort(startPort = 39217, maxAttempts = 20): Promise<number> {
+  return new Promise((resolve) => {
+    function tryPort(port: number, attemptsLeft: number) {
+      const server = net.createServer()
+      server.unref()
+      server.on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
+          console.log(`[hook] Port ${port} in use, trying ${port + 1}...`)
+          tryPort(port + 1, attemptsLeft - 1)
+        } else {
+          resolve(port)
         }
       })
+      server.listen({ port, host: '127.0.0.1' }, () => {
+        server.close(() => {
+          resolve(port)
+        })
+      })
+    }
+    tryPort(startPort, maxAttempts)
+  })
+}
 
-      ws.on('close', () => {
-        wsClients.delete(ws)
+let wssInstance: WebSocketServer | null = null
+
+function startHookServer(): Promise<number> {
+  return new Promise(async (resolve) => {
+    const port = await findAvailablePort(39217, 20)
+    try {
+      const wss = new WebSocketServer({ port, host: '127.0.0.1' })
+      wssInstance = wss
+
+      wss.on('error', (err: any) => {
+        console.error('[hook] WebSocketServer error:', err?.message || err)
       })
 
-      ws.on('error', () => {
-        wsClients.delete(ws)
+      wss.on('listening', () => {
+        console.log(`[hook] WebSocket server listening on ws://127.0.0.1:${port}`)
+        resolve(port)
       })
-    })
-    console.log('[hook] WebSocket server listening on ws://127.0.0.1:39217')
-  } catch (err) {
-    console.error('[hook] Failed to start WebSocket server:', err)
-  }
+
+      wss.on('connection', (ws: WebSocket) => {
+        console.log('[hook] Native drag hook connected')
+        wsClients.add(ws)
+
+        ws.on('message', async (raw) => {
+          try {
+            const msg = JSON.parse(raw.toString())
+            if (msg.type === 'DRAG_TAB') {
+              const { filePath, cursorX, cursorY } = msg
+              const cur = screen.getCursorScreenPoint()
+              const finalX = cur ? cur.x : cursorX
+              const finalY = cur ? cur.y : cursorY
+              console.log(`[hook] Trigger from native hook: ${filePath} at (${finalX}, ${finalY})`)
+              await triggerWheel(filePath, finalX, finalY)
+            } else if (msg.type === 'DISMISS') {
+              console.log('[hook] Dismiss request from native hook')
+              hideWheel()
+            }
+          } catch (err) {
+            console.error('[hook] Bad message:', err)
+          }
+        })
+
+        ws.on('close', () => {
+          wsClients.delete(ws)
+        })
+
+        ws.on('error', () => {
+          wsClients.delete(ws)
+        })
+      })
+
+      // Fallback resolve in case 'listening' fired before listener was attached
+      setTimeout(() => resolve(port), 100)
+    } catch (err) {
+      console.error('[hook] Failed to start WebSocket server:', err)
+      resolve(port)
+    }
+  })
 }
 
 let hookProcess: ChildProcess | null = null
 
-function startHookDaemon(): void {
+function startHookDaemon(port: number): void {
   // 1. Check for pre-compiled native listener binary first (bypasses PowerShell heuristics)
   const binaryCandidates = [
     join(process.resourcesPath, 'resources/drag-listener.exe'),
@@ -406,7 +449,7 @@ function startHookDaemon(): void {
         spawnSync('taskkill', ['/F', '/IM', 'drag-listener.exe'], { windowsHide: true })
       } catch {}
 
-      hookProcess = spawn(nativeBinary, [], { windowsHide: true })
+      hookProcess = spawn(nativeBinary, [String(port)], { windowsHide: true })
 
       hookProcess.on('error', (err) => {
         console.warn('[listener] Native binary error:', err.message)
@@ -418,7 +461,7 @@ function startHookDaemon(): void {
 
       hookProcess.stdout?.on('data', (d) => console.log(`[listener] ${d.toString().trim()}`))
       hookProcess.stderr?.on('data', (d) => console.error(`[listener error] ${d.toString().trim()}`))
-      console.log(`[listener] Native drag listener active (PID: ${hookProcess.pid}) from ${nativeBinary}`)
+      console.log(`[listener] Native drag listener active (PID: ${hookProcess.pid}, Port: ${port}) from ${nativeBinary}`)
       return
     } catch (e) {
       console.warn('[listener] Could not start native binary, falling back to script:', e)
@@ -448,7 +491,8 @@ function startHookDaemon(): void {
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
         '-WindowStyle', 'Hidden',
-        '-File', scriptPath
+        '-File', scriptPath,
+        '-Port', String(port)
       ], { windowsHide: true })
 
       hookProcess.on('error', (err) => {
@@ -461,7 +505,7 @@ function startHookDaemon(): void {
 
       hookProcess.stdout?.on('data', (d) => console.log(`[listener] ${d.toString().trim()}`))
       hookProcess.stderr?.on('data', (d) => console.error(`[listener error] ${d.toString().trim()}`))
-      console.log(`[listener] Drag + Tab background listener active (PID: ${hookProcess.pid})`)
+      console.log(`[listener] Drag + Tab background listener active (PID: ${hookProcess.pid}, Port: ${port})`)
     } catch (e) {
       console.warn('[listener] Could not start listener:', e)
     }
@@ -474,8 +518,14 @@ function startHookDaemon(): void {
 
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
+  console.log('[app] Another instance is already running. Quitting this instance immediately.')
   app.quit()
+  process.exit(0)
 }
+
+app.on('second-instance', () => {
+  showHub()
+})
 
 app.whenReady().then(async () => {
   // Block any browser permission dialogs (geolocation, camera, etc.)
@@ -491,12 +541,18 @@ app.whenReady().then(async () => {
   createPopupWindow()
 
   registerIpcHandlers()
-  startHookServer()
-  startHookDaemon()
+  const port = await startHookServer()
+  startHookDaemon(port)
 })
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
+  if (wssInstance) {
+    try {
+      wssInstance.close()
+    } catch {}
+    wssInstance = null
+  }
   if (hookProcess) {
     hookProcess.kill()
     hookProcess = null

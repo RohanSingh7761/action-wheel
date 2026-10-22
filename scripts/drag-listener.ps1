@@ -1,3 +1,7 @@
+param(
+    [int]$Port = 39217
+)
+
 Add-Type -TypeDefinition @"
 using System;
 using System.IO;
@@ -33,10 +37,16 @@ public class DragListener {
     };
 
     private static ClientWebSocket _ws = null;
-    private static readonly Uri _serverUri = new Uri("ws://127.0.0.1:39217");
+    private static int _serverPort = 39217;
+    private static Uri _serverUri {
+        get { return new Uri("ws://127.0.0.1:" + _serverPort); }
+    }
     private static volatile bool _isWheelActive = false;
 
-    public static void Run() {
+    public static void Run(int port) {
+        if (port > 1024 && port < 65535) {
+            _serverPort = port;
+        }
         Console.WriteLine("[listener] In-memory Drag + Tab listener started.");
 
         Thread connThread = new Thread(ConnectionLoop);
@@ -290,4 +300,4 @@ public class DragListener {
 }
 "@ -ReferencedAssemblies System.Core, Microsoft.CSharp
 
-[DragListener]::Run()
+[DragListener]::Run($Port)
