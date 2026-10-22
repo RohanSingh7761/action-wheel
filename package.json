@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "compile:listener": "powershell -Command \"& 'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe' /nologo /target:winexe /out:resources\\drag-listener.exe /reference:System.dll,System.Core.dll,Microsoft.CSharp.dll scripts\\drag-listener.cs\"",
-    "build:win": "npm run compile:listener && electron-vite build && electron-builder --win",
+    "build:win": "electron-vite build && electron-builder --win",
     "dist": "npm run build:win",
     "preview": "electron-vite preview",
     "start": "electron-vite dev"
@@ -47,14 +46,16 @@
     },
     "files": [
       "out/**/*",
-      "resources/**/*"
+      "resources/**/*",
+      "scripts/**/*"
     ],
     "extraResources": [
       {
         "from": "resources",
         "to": "resources",
         "filter": [
-          "**/*"
+          "**/*",
+          "!*.exe"
         ]
       },
       {

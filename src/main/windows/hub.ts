@@ -12,7 +12,7 @@ export function createHubWindow(): BrowserWindow {
     transparent: true,
     resizable: false,
     maximizable: false,
-    show: true,
+    show: false,
     alwaysOnTop: false,
     backgroundColor: '#00000000',
     webPreferences: {

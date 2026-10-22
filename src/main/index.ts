@@ -479,45 +479,12 @@ function startHookServer(): Promise<number> {
 let hookProcess: ChildProcess | null = null
 
 function startHookDaemon(port: number): void {
-  // 1. Check for pre-compiled native listener binary first (bypasses PowerShell heuristics)
-  const binaryCandidates = [
-    join(process.resourcesPath, 'resources/drag-listener.exe'),
-    join(process.resourcesPath, 'drag-listener.exe'),
-    join(__dirname, '../../resources/drag-listener.exe'),
-    join(app.getAppPath(), 'resources/drag-listener.exe')
-  ]
-  const nativeBinary = binaryCandidates.find((p) => existsSync(p))
-
-  if (nativeBinary) {
-    try {
-      try {
-        spawnSync('taskkill', ['/F', '/IM', 'drag-listener.exe'], { windowsHide: true })
-      } catch {}
-
-      hookProcess = spawn(nativeBinary, [String(port)], { windowsHide: true })
-
-      hookProcess.on('error', (err) => {
-        console.warn('[listener] Native binary error:', err.message)
-      })
-
-      hookProcess.on('exit', (code, signal) => {
-        console.log(`[listener] Native listener process exited with code ${code}, signal ${signal}`)
-      })
-
-      hookProcess.stdout?.on('data', (d) => console.log(`[listener] ${d.toString().trim()}`))
-      hookProcess.stderr?.on('data', (d) => console.error(`[listener error] ${d.toString().trim()}`))
-      console.log(`[listener] Native drag listener active (PID: ${hookProcess.pid}, Port: ${port}) from ${nativeBinary}`)
-      return
-    } catch (e) {
-      console.warn('[listener] Could not start native binary, falling back to script:', e)
-    }
-  }
-
-  // 2. Fallback to PowerShell script if native binary is not available
   const scriptCandidates = [
+    join(process.resourcesPath, 'scripts/drag-listener.ps1'),
+    join(process.resourcesPath, 'resources/scripts/drag-listener.ps1'),
     join(__dirname, '../../scripts/drag-listener.ps1'),
     join(app.getAppPath(), 'scripts/drag-listener.ps1'),
-    join(process.resourcesPath, 'scripts/drag-listener.ps1')
+    join(app.getAppPath(), 'resources/scripts/drag-listener.ps1')
   ]
   const scriptPath = scriptCandidates.find((p) => existsSync(p))
 
@@ -550,12 +517,12 @@ function startHookDaemon(port: number): void {
 
       hookProcess.stdout?.on('data', (d) => console.log(`[listener] ${d.toString().trim()}`))
       hookProcess.stderr?.on('data', (d) => console.error(`[listener error] ${d.toString().trim()}`))
-      console.log(`[listener] Drag + Tab background listener active (PID: ${hookProcess.pid}, Port: ${port})`)
+      console.log(`[listener] Drag + Tab background listener active (PID: ${hookProcess.pid}, Port: ${port}) from ${scriptPath}`)
     } catch (e) {
       console.warn('[listener] Could not start listener:', e)
     }
   } else {
-    console.warn('[listener] No listener binary or script found')
+    console.warn('[listener] No drag-listener.ps1 script found')
   }
 }
 
@@ -602,11 +569,17 @@ app.on('will-quit', () => {
     wssInstance = null
   }
   if (hookProcess) {
-    hookProcess.kill()
+    try {
+      hookProcess.kill()
+    } catch {}
     hookProcess = null
   }
   try {
-    spawnSync('taskkill', ['/F', '/IM', 'drag-listener.exe'], { windowsHide: true })
+    spawnSync('powershell.exe', [
+      '-NoProfile',
+      '-Command',
+      "Get-Process powershell -ErrorAction SilentlyContinue | ForEach-Object { try { $c = (Get-CimInstance Win32_Process -Filter \"ProcessId = $($_.Id)\").CommandLine; if ($c -like '*drag-listener.ps1*') { Stop-Process -Id $_.Id -Force } } catch {} }"
+    ], { timeout: 3000 })
   } catch {}
 })
 
