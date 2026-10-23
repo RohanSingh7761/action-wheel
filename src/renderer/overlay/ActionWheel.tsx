@@ -63,10 +63,21 @@ export default function ActionWheel({
 
   // Dynamically select action set based on file type and selection size
   const isPdf = triggerData.fileType === 'pdf' || triggerData.filePath.toLowerCase().endsWith('.pdf')
+  const singlePdfActions = PDF_ACTIONS_SINGLE.map((action) => {
+    if (action.id === 'pdf-protect' && triggerData.isEncryptedPdf) {
+      return {
+        ...action,
+        label: 'Unlock',
+        icon: 'unlock'
+      }
+    }
+    return action
+  })
+
   const activeActions = isPdf
     ? triggerData.isMultiple
       ? PDF_ACTIONS_MULTIPLE
-      : PDF_ACTIONS_SINGLE
+      : singlePdfActions
     : triggerData.isMultiple
     ? ACTIONS.filter((a) => a.id !== 'crop')
     : ACTIONS

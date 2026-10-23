@@ -54,6 +54,13 @@ function cropCanvasToContent(canvas: HTMLCanvasElement): string {
   return croppedCanvas.toDataURL('image/png')
 }
 
+interface PlacedSignature {
+  pdfX: number
+  pdfY: number
+  pdfW: number
+  pdfH: number
+}
+
 export default function PdfSignModal({ filePath }: PdfSignModalProps): React.ReactElement {
   const [loading, setLoading] = useState(true)
   const [pages, setPages] = useState<PageDetail[]>([])
@@ -65,9 +72,9 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
   const [selectedFont, setSelectedFont] = useState(SIGNATURE_FONTS[0].style)
   const [sigColor, setSigColor] = useState('#0f172a') // Dark ink
 
-  // Placed signature state
+  // Placed signature state (stored in PDF page coordinates so zooming never shifts position)
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null)
-  const [placedPos, setPlacedPos] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+  const [placedPos, setPlacedPos] = useState<PlacedSignature | null>(null)
   const [isSelected, setIsSelected] = useState<boolean>(true)
   const [aspectRatio, setAspectRatio] = useState<number>(2.5)
   const [zoom, setZoom] = useState<number>(1.0)
@@ -248,7 +255,7 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
 
   // Click on PDF Page to place signature or deselect if already placed
   const handlePageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!signatureDataUrl || isSubmitting) return
+    if (!signatureDataUrl || isSubmitting || !activePage) return
 
     // If signature is already placed, clicking anywhere else on page deselects it!
     if (placedPos) {
@@ -263,15 +270,22 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
     const clickX = e.clientX - rect.left
     const clickY = e.clientY - rect.top
 
-    // Snug bounding box based on natural aspect ratio
-    const sigW = Math.round(Math.min(180, Math.max(90, rect.width * 0.35)))
-    const sigH = Math.round(sigW / (aspectRatio || 2.5))
+    // Snug bounding box in screen pixels
+    const sigScreenW = Math.round(Math.min(180, Math.max(90, rect.width * 0.35)))
+    const sigScreenH = Math.round(sigScreenW / (aspectRatio || 2.5))
 
+    const screenX = Math.max(0, Math.min(clickX - sigScreenW / 2, rect.width - sigScreenW))
+    const screenY = Math.max(0, Math.min(clickY - sigScreenH / 2, rect.height - sigScreenH))
+
+    const scaleX = activePage.width / rect.width
+    const scaleY = activePage.height / rect.height
+
+    // Stored in absolute PDF points so it stays locked to document across any zoom level
     setPlacedPos({
-      x: Math.max(0, Math.min(clickX - sigW / 2, rect.width - sigW)),
-      y: Math.max(0, Math.min(clickY - sigH / 2, rect.height - sigH)),
-      width: sigW,
-      height: Math.max(25, sigH)
+      pdfX: Math.round(screenX * scaleX),
+      pdfY: Math.round(screenY * scaleY),
+      pdfW: Math.round(sigScreenW * scaleX),
+      pdfH: Math.round(sigScreenH * scaleY)
     })
     setIsSelected(true)
   }
@@ -279,12 +293,18 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
   // Start moving placed signature
   const handleMoveStart = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!placedPos) return
+    if (!placedPos || !pageContainerRef.current || !activePage) return
     setIsSelected(true)
     setInteraction('move')
+    const rect = pageContainerRef.current.getBoundingClientRect()
+    const scaleX = activePage.width / rect.width
+    const scaleY = activePage.height / rect.height
+    const mousePdfX = (e.clientX - rect.left) * scaleX
+    const mousePdfY = (e.clientY - rect.top) * scaleY
+
     setDragOffset({
-      x: e.clientX - placedPos.x,
-      y: e.clientY - placedPos.y
+      x: mousePdfX - placedPos.pdfX,
+      y: mousePdfY - placedPos.pdfY
     })
   }
 
@@ -296,22 +316,31 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
     setInteraction('resize')
     setResizeStart({
       startX: e.clientX,
-      origW: placedPos.width,
-      origH: placedPos.height
+      origW: placedPos.pdfW,
+      origH: placedPos.pdfH
     })
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (interaction === 'move' && placedPos && pageContainerRef.current) {
+    if (interaction === 'move' && placedPos && pageContainerRef.current && activePage) {
       const rect = pageContainerRef.current.getBoundingClientRect()
-      const newX = Math.max(0, Math.min(e.clientX - dragOffset.x, rect.width - placedPos.width))
-      const newY = Math.max(0, Math.min(e.clientY - dragOffset.y, rect.height - placedPos.height))
-      setPlacedPos((prev) => (prev ? { ...prev, x: newX, y: newY } : null))
-    } else if (interaction === 'resize' && placedPos && resizeStart) {
-      const dx = e.clientX - resizeStart.startX
-      const newW = Math.max(50, Math.min(320, resizeStart.origW + dx))
-      const newH = Math.round(newW / (aspectRatio || 2.5))
-      setPlacedPos((prev) => (prev ? { ...prev, width: newW, height: newH } : null))
+      const scaleX = activePage.width / rect.width
+      const scaleY = activePage.height / rect.height
+      const currentPdfX = (e.clientX - rect.left) * scaleX
+      const currentPdfY = (e.clientY - rect.top) * scaleY
+
+      const newPdfX = Math.max(0, Math.min(currentPdfX - dragOffset.x, activePage.width - placedPos.pdfW))
+      const newPdfY = Math.max(0, Math.min(currentPdfY - dragOffset.y, activePage.height - placedPos.pdfH))
+      setPlacedPos((prev) => (prev ? { ...prev, pdfX: newPdfX, pdfY: newPdfY } : null))
+    } else if (interaction === 'resize' && placedPos && resizeStart && pageContainerRef.current && activePage) {
+      const rect = pageContainerRef.current.getBoundingClientRect()
+      const scaleX = activePage.width / rect.width
+      const dxPdf = (e.clientX - resizeStart.startX) * scaleX
+      const minPdfW = activePage.width * 0.1
+      const maxPdfW = activePage.width * 0.8
+      const newPdfW = Math.max(minPdfW, Math.min(maxPdfW, resizeStart.origW + dxPdf))
+      const newPdfH = Math.round(newPdfW / (aspectRatio || 2.5))
+      setPlacedPos((prev) => (prev ? { ...prev, pdfW: newPdfW, pdfH: newPdfH } : null))
     }
   }
 
@@ -322,20 +351,7 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
 
   const handleApply = async () => {
     if (!signatureDataUrl || !placedPos || isSubmitting) return
-    const activePageDetail = pages[currentPage - 1]
-    const container = pageContainerRef.current
-    if (!activePageDetail || !container) return
-
     setIsSubmitting(true)
-    const containerRect = container.getBoundingClientRect()
-
-    const scaleX = activePageDetail.width / containerRect.width
-    const scaleY = activePageDetail.height / containerRect.height
-
-    const realX = placedPos.x * scaleX
-    const realY = placedPos.y * scaleY
-    const realW = placedPos.width * scaleX
-    const realH = placedPos.height * scaleY
 
     const api = (window as any).popupAPI
     if (api?.confirm) {
@@ -343,10 +359,10 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
         params: {
           signatureDataUrl,
           page: currentPage,
-          x: realX,
-          y: realY,
-          width: realW,
-          height: realH
+          x: placedPos.pdfX,
+          y: placedPos.pdfY,
+          width: placedPos.pdfW,
+          height: placedPos.pdfH
         }
       })
     }
@@ -377,9 +393,9 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      <div className="flex gap-5 flex-1">
-        {/* Left: Document Page Preview */}
-        <div className="flex-[1.25] flex flex-col items-center justify-between bg-black/50 rounded-2xl p-4 border border-white/[0.08] shadow-inner">
+      <div className="flex gap-5 flex-1 min-h-0 overflow-hidden">
+        {/* Left: Document Page Preview (rigidly locked width so zooming never squishes right-side controls) */}
+        <div className="w-[52%] max-w-[52%] min-w-0 shrink-0 flex flex-col items-center justify-between bg-black/50 rounded-2xl p-4 border border-white/[0.08] shadow-inner overflow-hidden">
           {/* Page Switcher Header & Zoom Controls */}
           <div className="w-full flex items-center justify-between pb-3 mb-2 border-b border-white/[0.06]">
             <div className="flex items-center gap-2">
@@ -442,6 +458,9 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
               const displayWidth = Math.round(baseWidth * zoom)
               const displayHeight = Math.round(baseHeight * zoom)
 
+              const scaleX = displayWidth / activePage.width
+              const scaleY = displayHeight / activePage.height
+
               return (
                 <div
                   ref={pageContainerRef}
@@ -478,10 +497,10 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
                       }}
                       onMouseDown={handleMoveStart}
                       style={{
-                        left: placedPos.x,
-                        top: placedPos.y,
-                        width: placedPos.width,
-                        height: placedPos.height
+                        left: placedPos.pdfX * scaleX,
+                        top: placedPos.pdfY * scaleY,
+                        width: placedPos.pdfW * scaleX,
+                        height: placedPos.pdfH * scaleY
                       }}
                       className={`absolute rounded cursor-move group select-none transition-all ${
                         isSelected
@@ -526,7 +545,7 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
         </div>
 
         {/* Right: Signature Creation Controls */}
-        <div className="flex-1 flex flex-col justify-between bg-white/[0.02] border border-white/[0.08] rounded-2xl p-4 shadow-sm">
+        <div className="flex-1 min-w-0 flex flex-col justify-between bg-white/[0.02] border border-white/[0.08] rounded-2xl p-4 shadow-sm overflow-hidden">
           <div>
             {/* Draw / Type Tabs */}
             <div className="flex items-center gap-1.5 p-1 bg-black/40 rounded-xl mb-4 border border-white/[0.06]">

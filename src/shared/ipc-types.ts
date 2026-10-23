@@ -174,6 +174,7 @@ export interface TriggerPayload {
   timestamp?: number
   /** base64 thumbnail, max 120x120 */
   thumbnail?: string
+  isEncryptedPdf?: boolean
 }
 
 export interface ProcessingPayload {
@@ -209,6 +210,8 @@ export interface PopupInitPayload {
   fileType?: FileType
   pageCount?: number
   isMultiple?: boolean
+  timestamp?: number
+  isEncryptedPdf?: boolean
 }
 
 export interface ConvertFormatParams {

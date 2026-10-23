@@ -105,7 +105,11 @@ export default function App(): React.ReactElement {
         }
       case 'pdf-protect':
         return {
-          title: initData.isMultiple ? 'Protect All PDFs' : 'Protect / Unlock PDF',
+          title: initData.isEncryptedPdf
+            ? 'Unlock PDF Document'
+            : initData.isMultiple
+            ? 'Protect All PDFs'
+            : 'Protect PDF Document',
           icon: <LockIcon size={15} strokeWidth={1.8} />
         }
       case 'pdf-to-images':
@@ -151,7 +155,10 @@ export default function App(): React.ReactElement {
           </div>
 
           <button
-            onClick={() => (window as any).popupAPI?.cancel()}
+            onClick={() => {
+              setInitData(null)
+              ;(window as any).popupAPI?.cancel()
+            }}
             className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
             title="Close (Esc)"
           >
@@ -162,34 +169,68 @@ export default function App(): React.ReactElement {
         {/* Modal Body Container */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col">
           {initData.action === 'convert-pdf' && (
-            <PdfReorder filePath={initData.filePath} filePaths={initData.filePaths} />
+            <PdfReorder
+              key={`reorder-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+              filePaths={initData.filePaths}
+            />
           )}
           {initData.action === 'convert-format' && (
-            <FormatPicker filePath={initData.filePath} />
+            <FormatPicker
+              key={`format-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+            />
           )}
           {initData.action === 'crop' && (
-            <CropEditor filePath={initData.filePath} />
+            <CropEditor
+              key={`crop-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+            />
           )}
           {initData.action === 'compress' && (
-            <CompressSlider filePath={initData.filePath} />
+            <CompressSlider
+              key={`compress-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+            />
           )}
           {initData.action === 'pdf-edit' && (
-            <PdfEditModal filePath={initData.filePath} />
+            <PdfEditModal
+              key={`edit-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+            />
           )}
           {initData.action === 'pdf-sign' && (
-            <PdfSignModal filePath={initData.filePath} />
+            <PdfSignModal
+              key={`sign-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+            />
           )}
           {initData.action === 'pdf-split' && (
-            <PdfSplitModal filePath={initData.filePath} />
+            <PdfSplitModal
+              key={`split-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+            />
           )}
           {initData.action === 'pdf-merge' && (
-            <PdfMergeModal filePath={initData.filePath} filePaths={initData.filePaths} />
+            <PdfMergeModal
+              key={`merge-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+              filePaths={initData.filePaths}
+            />
           )}
           {initData.action === 'pdf-protect' && (
-            <PdfProtectModal filePath={initData.filePath} isMultiple={initData.isMultiple} />
+            <PdfProtectModal
+              key={`protect-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+              isMultiple={initData.isMultiple}
+            />
           )}
           {initData.action === 'pdf-to-images' && (
-            <PdfToImagesModal filePath={initData.filePath} filePaths={initData.filePaths} />
+            <PdfToImagesModal
+              key={`to-images-${initData.filePath}-${initData.timestamp || Date.now()}`}
+              filePath={initData.filePath}
+              filePaths={initData.filePaths}
+            />
           )}
         </div>
       </div>

@@ -117,7 +117,7 @@ export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModa
             <p className="text-[11px] text-zinc-400 mt-0.5">
               {isEncrypted
                 ? `Enter password to remove encryption from ${fileName}`
-                : 'Encrypt with military-grade AES-256 standard security'}
+                : 'Encrypt document with AES-256 standard password security'}
             </p>
           </div>
         </div>

@@ -550,17 +550,15 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
                 />
 
                 {/* Saved Annotations */}
-                {containerRef.current &&
-                  pageAnnotations.map((ann) => {
-                    const rect = containerRef.current!.getBoundingClientRect()
-                    const scaleX = rect.width / activePageDetail.width
-                    const scaleY = rect.height / activePageDetail.height
+                {pageAnnotations.map((ann) => {
+                  const scaleX = displayWidth / activePageDetail.width
+                  const scaleY = displayHeight / activePageDetail.height
 
-                    const left = ann.x * scaleX
-                    const top = ann.y * scaleY
-                    const width = (ann.width || 0) * scaleX
-                    const height = (ann.height || 0) * scaleY
-                    const isSelected = selectedId === ann.id
+                  const left = ann.x * scaleX
+                  const top = ann.y * scaleY
+                  const width = (ann.width || 0) * scaleX
+                  const height = (ann.height || 0) * scaleY
+                  const isSelected = selectedId === ann.id
 
                 if (ann.type === 'text') {
                   return (

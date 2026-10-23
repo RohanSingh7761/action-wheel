@@ -240,6 +240,15 @@ export async function triggerWheel(
     }
   }
 
+  let isEncryptedPdf = false
+  if (isPdf && !isMultiple) {
+    try {
+      isEncryptedPdf = await checkIsPdfEncrypted(filePath)
+    } catch (err) {
+      console.warn('[pdf] isEncrypted check error:', err)
+    }
+  }
+
   const overlayWin = getOverlayWindow()
   if (!overlayWin) return
 
@@ -255,7 +264,8 @@ export async function triggerWheel(
     cursorX,
     cursorY,
     timestamp: Date.now(),
-    thumbnail
+    thumbnail,
+    isEncryptedPdf
   }
   overlayWin.webContents.send(IPC.OVERLAY_TRIGGER, payload)
 }
@@ -304,12 +314,15 @@ function registerIpcHandlers(): void {
       // Show popup near cursor
       const popupWin = getPopupWindow()
       if (popupWin) {
+        const isEncryptedPdf = isPdf && !isMultiple ? await checkIsPdfEncrypted(filePath).catch(() => false) : false
         const initPayload: PopupInitPayload = {
           action: action as ActionId,
           filePath,
           filePaths: currentFilePaths,
           fileType: isPdf ? 'pdf' : 'image',
-          isMultiple
+          isMultiple,
+          timestamp: Date.now(),
+          isEncryptedPdf
         }
         showPopup(currentCursorX, currentCursorY)
         popupWin.webContents.send(IPC.POPUP_INIT, initPayload)
@@ -383,6 +396,8 @@ function registerIpcHandlers(): void {
 
   // Popup cancelled
   ipcMain.on(IPC.POPUP_CANCEL, () => {
+    pendingAction = null
+    hidePopup()
     hideWheel()
   })
 
