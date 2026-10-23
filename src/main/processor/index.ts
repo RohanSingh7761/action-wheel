@@ -1,11 +1,30 @@
 import { statSync } from 'fs'
-import path from 'path'
-import type { ActionId, PopupParams, ConvertFormatParams, CropParams, CompressParams, PdfReorderParams } from '../../shared/ipc-types'
+import type {
+  ActionId,
+  PopupParams,
+  ConvertFormatParams,
+  CropParams,
+  CompressParams,
+  PdfReorderParams,
+  PdfSignParams,
+  PdfSplitParams,
+  PdfProtectParams,
+  PdfEditParams,
+  PdfMergeParams,
+  PdfToImagesParams
+} from '../../shared/ipc-types'
 import { convertToPdf, convertMultipleToPdf } from './convert-pdf'
 import { convertFormat } from './convert-format'
 import { cropImage } from './crop'
 import { compressImage } from './compress'
-import { shell } from 'electron'
+
+import { signPdf } from './pdf/pdf-sign'
+import { splitPdf } from './pdf/pdf-split'
+import { mergePdfs } from './pdf/pdf-merge'
+import { pdfToImages } from './pdf/pdf-to-images'
+import { protectOrUnlockPdf } from './pdf/pdf-protect'
+import { compressPdf } from './pdf/pdf-compress'
+import { editPdf } from './pdf/pdf-edit'
 
 export interface ProcessResult {
   outputPath: string
@@ -51,6 +70,45 @@ export async function processAction(
       return { outputPath: filePath }
     }
 
+    case 'pdf-edit': {
+      if (!params) throw new Error('pdf-edit requires params')
+      const out = await editPdf(filePath, params as PdfEditParams)
+      return { outputPath: out }
+    }
+
+    case 'pdf-sign': {
+      if (!params) throw new Error('pdf-sign requires params')
+      const out = await signPdf(filePath, params as PdfSignParams)
+      return { outputPath: out }
+    }
+
+    case 'pdf-split': {
+      if (!params) throw new Error('pdf-split requires params')
+      const out = await splitPdf(filePath, params as PdfSplitParams)
+      return { outputPath: out }
+    }
+
+    case 'pdf-to-images': {
+      const result = await pdfToImages(filePath, params as PdfToImagesParams | undefined)
+      return result
+    }
+
+    case 'pdf-compress': {
+      const result = await compressPdf(filePath)
+      return result
+    }
+
+    case 'pdf-protect': {
+      if (!params) throw new Error('pdf-protect requires params')
+      const out = await protectOrUnlockPdf(filePath, params as PdfProtectParams)
+      return { outputPath: out }
+    }
+
+    case 'pdf-merge': {
+      const out = await mergePdfs([filePath], params as PdfMergeParams | undefined)
+      return { outputPath: out }
+    }
+
     default:
       throw new Error(`Unknown action: ${action}`)
   }
@@ -72,6 +130,14 @@ export async function processBatchAction(
     return { outputPath: out }
   }
 
+  if (action === 'pdf-merge') {
+    const out = await mergePdfs(filePaths, params as PdfMergeParams | undefined)
+    return {
+      outputPath: out,
+      sizeInfo: `${filePaths.length} PDFs merged`
+    }
+  }
+
   let lastOut = ''
   for (const file of filePaths) {
     const res = await processAction(action, file, params)
@@ -80,7 +146,7 @@ export async function processBatchAction(
 
   return {
     outputPath: lastOut,
-    sizeInfo: `${filePaths.length} images processed`
+    sizeInfo: `${filePaths.length} files processed`
   }
 }
 

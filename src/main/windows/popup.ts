@@ -6,12 +6,14 @@ let popupWin: BrowserWindow | null = null
 
 export function createPopupWindow(): BrowserWindow {
   popupWin = new BrowserWindow({
-    width: 560,
-    height: 540,
+    width: 720,
+    height: 600,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
+    minWidth: 540,
+    minHeight: 480,
     movable: true,
     skipTaskbar: true,
     show: false,
@@ -43,8 +45,9 @@ export function showPopup(x?: number, y?: number): void {
   if (!popupWin) return
   if (x !== undefined && y !== undefined) {
     const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
-    const targetX = Math.max(20, Math.min(Math.round(x - 280), screenW - 580))
-    const targetY = Math.max(20, Math.min(Math.round(y - 270), screenH - 560))
+    const [curW, curH] = popupWin.getSize()
+    const targetX = Math.max(20, Math.min(Math.round(x - curW / 2), screenW - curW - 20))
+    const targetY = Math.max(20, Math.min(Math.round(y - curH / 2), screenH - curH - 20))
     popupWin.setPosition(targetX, targetY)
   }
   popupWin.setAlwaysOnTop(true, 'screen-saver')

@@ -1,0 +1,202 @@
+import React, { useState, useEffect } from 'react'
+import { LockIcon } from '../shared/Icons'
+
+interface PdfProtectModalProps {
+  filePath: string
+  isMultiple?: boolean
+}
+
+export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModalProps): React.ReactElement {
+  const [loading, setLoading] = useState(true)
+  const [isEncrypted, setIsEncrypted] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+    const checkStatus = async () => {
+      try {
+        const api = (window as any).popupAPI
+        if (api?.checkPdfEncrypted) {
+          const enc = await api.checkPdfEncrypted(filePath)
+          if (isMounted) setIsEncrypted(Boolean(enc))
+        }
+      } catch (err) {
+        console.warn('Failed to check encryption status:', err)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    checkStatus()
+    return () => {
+      isMounted = false
+    }
+  }, [filePath])
+
+  const fileName = filePath.split('\\').pop()?.split('/').pop() || 'Document'
+
+  const handleSubmit = async () => {
+    if (isSubmitting) return
+    setError(null)
+
+    if (!password.trim()) {
+      setError('Please enter a password')
+      return
+    }
+
+    if (!isEncrypted && password !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
+    setIsSubmitting(true)
+    const api = (window as any).popupAPI
+    if (api?.confirm) {
+      await api.confirm({
+        params: {
+          mode: isEncrypted ? 'unlock' : 'protect',
+          password: password.trim()
+        }
+      })
+    }
+  }
+
+  const handleCancel = () => {
+    ;(window as any).popupAPI?.cancel()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3">
+        <div className="w-7 h-7 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+        <span className="text-xs text-zinc-400 font-medium tracking-wide">
+          Inspecting encryption status…
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 flex flex-col justify-between select-none h-full min-h-[380px]">
+      <div>
+        {/* Header Badge */}
+        <div className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl mb-4">
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              isEncrypted
+                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+            }`}
+          >
+            <LockIcon size={20} />
+          </div>
+          <div>
+            <h3 className="text-xs font-semibold text-white">
+              {isEncrypted ? 'Unlock PDF Document' : isMultiple ? 'Protect All PDFs' : 'Protect PDF Document'}
+            </h3>
+            <p className="text-[11px] text-zinc-400 mt-0.5">
+              {isEncrypted
+                ? `Enter password to remove encryption from ${fileName}`
+                : 'Encrypt with military-grade AES-256 standard security'}
+            </p>
+          </div>
+        </div>
+
+        {/* Form Inputs */}
+        <div className="space-y-3">
+          <div>
+            <label className="text-[11px] font-semibold text-zinc-300 block mb-1">
+              {isEncrypted ? 'Current Document Password' : 'New Password'}
+            </label>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/40 border border-white/[0.08] focus-within:border-indigo-500/80 transition-all">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setError(null)
+                }}
+                placeholder="Enter password"
+                className="w-full bg-transparent text-xs text-white focus:outline-none placeholder-zinc-500 font-mono tracking-wider"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-[10px] text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+
+          {!isEncrypted && (
+            <div>
+              <label className="text-[11px] font-semibold text-zinc-300 block mb-1">
+                Confirm Password
+              </label>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/40 border border-white/[0.08] focus-within:border-indigo-500/80 transition-all">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value)
+                    setError(null)
+                  }}
+                  placeholder="Re-enter password"
+                  className="w-full bg-transparent text-xs text-white focus:outline-none placeholder-zinc-500 font-mono tracking-wider"
+                />
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-[11px] text-red-400 font-medium px-1 flex items-center gap-1">
+              <span>⚠</span> {error}
+            </p>
+          )}
+
+          {!isEncrypted && password && (
+            <div className="p-2.5 bg-indigo-500/5 rounded-xl border border-indigo-500/10">
+              <span className="text-[10px] text-indigo-300/80 block">
+                🔒 Protected files require this password to be opened on any device.
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between mt-3">
+        <button
+          onClick={handleCancel}
+          className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleSubmit}
+          disabled={!password || isSubmitting}
+          className={`px-5 py-2 rounded-xl text-xs font-semibold shadow-lg transition-all flex items-center gap-2 ${
+            password && !isSubmitting
+              ? isEncrypted
+                ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30 cursor-pointer'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 cursor-pointer'
+              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+          }`}
+        >
+          {isSubmitting
+            ? isEncrypted
+              ? 'Unlocking…'
+              : 'Protecting…'
+            : isEncrypted
+            ? 'Unlock PDF'
+            : 'Protect PDF'}
+        </button>
+      </div>
+    </div>
+  )
+}

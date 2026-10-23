@@ -26,15 +26,25 @@ public class DragListener {
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int X; public int Y; }
 
-    // Accepted photo formats only (NO videos, NO audio, NO archives, NO docs)
+    // Accepted photo formats
     private static readonly HashSet<string> _photoExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
         ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif", ".avif", ".heic", ".heif", ".gif"
+    };
+
+    // Accepted PDF format
+    private static readonly HashSet<string> _pdfExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+        ".pdf"
     };
 
     // Video formats explicitly checked to reject immediately
     private static readonly HashSet<string> _videoExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
         ".mp4", ".mkv", ".mov", ".avi", ".wmv", ".webm", ".flv", ".m4v", ".mpg", ".mpeg", ".3gp", ".ts", ".mts"
     };
+
+    private class FileSelection {
+        public string FileType; // "image" or "pdf"
+        public List<string> Paths;
+    }
 
     private static ClientWebSocket _ws = null;
     private static int _serverPort = 39217;
@@ -101,14 +111,14 @@ public class DragListener {
                         GetCursorPos(out pt);
                         Console.WriteLine("[listener] Drag + Tab detected at (" + pt.X + ", " + pt.Y + ")");
 
-                        List<string> photoPaths = GetDraggedPhotoPaths(pt);
+                        FileSelection sel = GetDraggedFiles(pt);
 
-                        if (photoPaths != null && photoPaths.Count > 0) {
-                            Console.WriteLine("[listener] Triggering wheel for " + photoPaths.Count + " photo(s): " + photoPaths[0]);
-                            SendTrigger(photoPaths, pt.X, pt.Y);
+                        if (sel != null && sel.Paths != null && sel.Paths.Count > 0) {
+                            Console.WriteLine("[listener] Triggering wheel for " + sel.Paths.Count + " " + sel.FileType + "(s): " + sel.Paths[0]);
+                            SendTrigger(sel, pt.X, pt.Y);
                             _isWheelActive = true;
                         } else {
-                            Console.WriteLine("[listener] Drag + Tab ignored: selection does not consist exclusively of images.");
+                            Console.WriteLine("[listener] Drag + Tab ignored: selection does not consist exclusively of supported images or PDFs.");
                         }
 
                         // Wait until Tab key is released so we don't immediately re-trigger
@@ -166,18 +176,18 @@ public class DragListener {
         }
     }
 
-    private static void SendTrigger(List<string> filePaths, int x, int y) {
+    private static void SendTrigger(FileSelection sel, int x, int y) {
         try {
-            if (_ws != null && _ws.State == WebSocketState.Open && filePaths != null && filePaths.Count > 0) {
-                string primaryPath = filePaths[0].Replace("\\", "\\\\").Replace("\"", "\\\"");
+            if (_ws != null && _ws.State == WebSocketState.Open && sel != null && sel.Paths != null && sel.Paths.Count > 0) {
+                string primaryPath = sel.Paths[0].Replace("\\", "\\\\").Replace("\"", "\\\"");
                 StringBuilder sb = new StringBuilder();
                 sb.Append("[");
-                for (int i = 0; i < filePaths.Count; i++) {
+                for (int i = 0; i < sel.Paths.Count; i++) {
                     if (i > 0) sb.Append(",");
-                    sb.Append("\"").Append(filePaths[i].Replace("\\", "\\\\").Replace("\"", "\\\"")).Append("\"");
+                    sb.Append("\"").Append(sel.Paths[i].Replace("\\", "\\\\").Replace("\"", "\\\"")).Append("\"");
                 }
                 sb.Append("]");
-                string json = string.Format("{{\"type\":\"DRAG_TAB\",\"filePath\":\"{0}\",\"filePaths\":{1},\"cursorX\":{2},\"cursorY\":{3}}}", primaryPath, sb.ToString(), x, y);
+                string json = string.Format("{{\"type\":\"DRAG_TAB\",\"filePath\":\"{0}\",\"filePaths\":{1},\"fileType\":\"{2}\",\"cursorX\":{3},\"cursorY\":{4}}}", primaryPath, sb.ToString(), sel.FileType, x, y);
                 byte[] bytes = Encoding.UTF8.GetBytes(json);
                 _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None).Wait();
             }
@@ -205,7 +215,7 @@ public class DragListener {
         return cls == "Progman" || cls == "WorkerW";
     }
 
-    private static List<string> GetDraggedPhotoPaths(POINT pt) {
+    private static FileSelection GetDraggedFiles(POINT pt) {
         try {
             Type shellType = Type.GetTypeFromProgID("Shell.Application");
             if (shellType == null) return null;
@@ -220,7 +230,7 @@ public class DragListener {
                 try {
                     long wHwnd = (long)w.HWND;
                     if (wHwnd == (long)fgHwnd || wHwnd == (long)ptRoot) {
-                        return ExtractPhotosFromDoc(w.Document);
+                        return ExtractFilesFromDoc(w.Document);
                     }
                 } catch { }
             }
@@ -234,7 +244,7 @@ public class DragListener {
                     object disp = windows.FindWindowSW(Type.Missing, Type.Missing, SWC_DESKTOP, ref hwnd, SWFO_NEEDDISPATCH);
                     if (disp != null) {
                         dynamic desktopWin = disp;
-                        return ExtractPhotosFromDoc(desktopWin.Document);
+                        return ExtractFilesFromDoc(desktopWin.Document);
                     }
                 } catch { }
             }
@@ -243,7 +253,7 @@ public class DragListener {
         return null;
     }
 
-    private static List<string> ExtractPhotosFromDoc(dynamic doc) {
+    private static FileSelection ExtractFilesFromDoc(dynamic doc) {
         if (doc == null) return null;
 
         // Check selected items (all items actively being dragged)
@@ -251,22 +261,32 @@ public class DragListener {
             var selected = doc.SelectedItems();
             if (selected != null && selected.Count > 0) {
                 List<string> list = new List<string>();
+                bool allImages = true;
+                bool allPdfs = true;
+
                 foreach (var item in selected) {
                     string path = (string)item.Path;
-                    if (string.IsNullOrEmpty(path)) return null;
+                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
                     string ext = Path.GetExtension(path);
-                    if (_videoExts.Contains(ext)) {
-                        Console.WriteLine("[listener] Item is a video (" + ext + "), rejecting selection: " + path);
-                        return null;
-                    }
-                    if (!_photoExts.Contains(ext) || !File.Exists(path)) {
-                        Console.WriteLine("[listener] Item is not an image (" + ext + "), rejecting selection: " + path);
-                        return null;
-                    }
+                    if (_videoExts.Contains(ext)) return null;
+
+                    bool isImg = _photoExts.Contains(ext);
+                    bool isPdf = _pdfExts.Contains(ext);
+
+                    if (!isImg) allImages = false;
+                    if (!isPdf) allPdfs = false;
+
+                    if (!isImg && !isPdf) return null; // unsupported file type
                     list.Add(path);
                 }
-                if (list.Count > 0) return list;
-                return null;
+
+                if (allImages && list.Count > 0) {
+                    return new FileSelection { FileType = "image", Paths = list };
+                }
+                if (allPdfs && list.Count > 0) {
+                    return new FileSelection { FileType = "pdf", Paths = list };
+                }
+                return null; // Mixed selection not allowed
             }
         } catch { }
 
@@ -275,10 +295,13 @@ public class DragListener {
             var focused = doc.FocusedItem;
             if (focused != null) {
                 string path = (string)focused.Path;
-                if (!string.IsNullOrEmpty(path)) {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path)) {
                     string ext = Path.GetExtension(path);
-                    if (!_videoExts.Contains(ext) && _photoExts.Contains(ext) && File.Exists(path)) {
-                        return new List<string> { path };
+                    if (_photoExts.Contains(ext)) {
+                        return new FileSelection { FileType = "image", Paths = new List<string> { path } };
+                    }
+                    if (_pdfExts.Contains(ext)) {
+                        return new FileSelection { FileType = "pdf", Paths = new List<string> { path } };
                     }
                 }
             }

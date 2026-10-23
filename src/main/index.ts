@@ -25,7 +25,10 @@ import { checkForUpdates } from './updater'
 import {
   IPC,
   ACTIONS,
+  PDF_ACTIONS_SINGLE,
+  PDF_ACTIONS_MULTIPLE,
   type ActionId,
+  type FileType,
   type TriggerPayload,
   type PopupParams,
   type ActionSelectPayload,
@@ -50,6 +53,8 @@ import {
 } from './windows/popup'
 
 import { processAction, processBatchAction } from './processor/index'
+import { loadPdfDetails } from './processor/pdf/pdf-preview'
+import { checkIsPdfEncrypted } from './processor/pdf/pdf-protect'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -208,7 +213,8 @@ export async function triggerWheel(
   filePath: string,
   cursorX: number,
   cursorY: number,
-  filePaths?: string[]
+  filePaths?: string[],
+  fileType?: FileType
 ): Promise<void> {
   currentFilePath = filePath
   currentFilePaths = filePaths && filePaths.length > 0 ? filePaths : [filePath]
@@ -216,18 +222,22 @@ export async function triggerWheel(
   currentCursorY = cursorY
 
   const isMultiple = currentFilePaths.length > 1
+  const isPdf = fileType === 'pdf' || filePath.toLowerCase().endsWith('.pdf')
+  const detectedFileType: FileType = isPdf ? 'pdf' : 'image'
 
-  // Generate thumbnail from first image
+  // Generate thumbnail from first image only if image
   let thumbnail: string | undefined
-  try {
-    const thumbBuffer = await sharp(filePath)
-      .resize(120, 120, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png()
-      .toBuffer()
-    thumbnail = `data:image/png;base64,${thumbBuffer.toString('base64')}`
-  } catch (err) {
-    console.warn('[thumbnail] Could not generate preview thumbnail:', err)
-    thumbnail = undefined
+  if (!isPdf) {
+    try {
+      const thumbBuffer = await sharp(filePath)
+        .resize(120, 120, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png()
+        .toBuffer()
+      thumbnail = `data:image/png;base64,${thumbBuffer.toString('base64')}`
+    } catch (err) {
+      console.warn('[thumbnail] Could not generate preview thumbnail:', err)
+      thumbnail = undefined
+    }
   }
 
   const overlayWin = getOverlayWindow()
@@ -240,6 +250,7 @@ export async function triggerWheel(
   const payload: TriggerPayload = {
     filePath,
     filePaths: currentFilePaths,
+    fileType: detectedFileType,
     isMultiple,
     cursorX,
     cursorY,
@@ -253,7 +264,7 @@ export async function triggerWheel(
 
 function registerIpcHandlers(): void {
   // Overlay selects an action
-  ipcMain.handle(IPC.ACTION_SELECT, async (_e, { action, filePath, filePaths }: ActionSelectPayload) => {
+  ipcMain.handle(IPC.ACTION_SELECT, async (_e, { action, filePath, filePaths, fileType }: ActionSelectPayload) => {
     currentFilePath = filePath
     if (filePaths && filePaths.length > 0) {
       currentFilePaths = filePaths
@@ -262,7 +273,9 @@ function registerIpcHandlers(): void {
     }
 
     const isMultiple = currentFilePaths.length > 1
-    const meta = ACTIONS.find(a => a.id === action)
+    const isPdf = fileType === 'pdf' || action.startsWith('pdf-') || filePath.toLowerCase().endsWith('.pdf')
+    const allActions = [...ACTIONS, ...PDF_ACTIONS_SINGLE, ...PDF_ACTIONS_MULTIPLE]
+    const meta = allActions.find(a => a.id === action)
 
     // Handle copy immediately
     if (action === 'copy') {
@@ -277,7 +290,7 @@ function registerIpcHandlers(): void {
       return { needsParams: false }
     }
 
-    // If PDF is selected and multiple images are selected -> open reorder popup window!
+    // Determine if popup needs to open
     const needsPopup = meta?.needsParams || (action === 'convert-pdf' && isMultiple)
 
     if (needsPopup) {
@@ -295,6 +308,7 @@ function registerIpcHandlers(): void {
           action: action as ActionId,
           filePath,
           filePaths: currentFilePaths,
+          fileType: isPdf ? 'pdf' : 'image',
           isMultiple
         }
         showPopup(currentCursorX, currentCursorY)
@@ -339,9 +353,9 @@ function registerIpcHandlers(): void {
       hideWheel()
 
       if (result.outputPath) {
-        // Only open file automatically on single image, or when multiple images merged to single PDF
+        // Open file or folder automatically on single item, or when multiple items merged to single PDF
         const isMultiple = filePaths.length > 1
-        if (!isMultiple || action === 'convert-pdf') {
+        if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge' || action === 'pdf-to-images') {
           shell.openPath(result.outputPath)
         }
       }
@@ -374,6 +388,22 @@ function registerIpcHandlers(): void {
       return null
     }
   })
+
+  // Load PDF details (pages count, dimensions, page render preview images)
+  ipcMain.handle(IPC.PDF_LOAD_DETAILS, async (_e, filePath: string) => {
+    try {
+      const details = await loadPdfDetails(filePath)
+      return details
+    } catch (err) {
+      console.error('[pdf-preview] Error loading PDF details:', err)
+      return null
+    }
+  })
+
+  // Check if PDF is encrypted
+  ipcMain.handle('pdf:check-encrypted', async (_e, filePath: string) => {
+    return await checkIsPdfEncrypted(filePath)
+  })
 }
 
 let isProcessingImmediate = false
@@ -402,7 +432,7 @@ async function processImmediate(action: ActionId, filePath: string): Promise<voi
 
     if (action !== 'copy' && result.outputPath) {
       const isMultiple = currentFilePaths.length > 1
-      if (!isMultiple || action === 'convert-pdf') {
+      if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge' || action === 'pdf-to-images' || action === 'pdf-compress') {
         console.log(`[shell] Opening output file: ${result.outputPath}`)
         const openErr = await shell.openPath(result.outputPath)
         if (openErr) {
@@ -482,15 +512,15 @@ function startHookServer(): Promise<number> {
           try {
             const msg = JSON.parse(raw.toString())
             if (msg.type === 'DRAG_TAB') {
-              const { filePath, filePaths, cursorX, cursorY } = msg
+              const { filePath, filePaths, cursorX, cursorY, fileType } = msg
               const cur = screen.getCursorScreenPoint()
               const finalX = cur ? cur.x : cursorX
               const finalY = cur ? cur.y : cursorY
               const allPaths: string[] = Array.isArray(filePaths) && filePaths.length > 0 ? filePaths : [filePath]
               console.log(
-                `[hook] Trigger from native hook: ${filePath} (${allPaths.length} image(s)) at (${finalX}, ${finalY})`
+                `[hook] Trigger from native hook: ${filePath} (${allPaths.length} ${fileType || 'image'}(s)) at (${finalX}, ${finalY})`
               )
-              await triggerWheel(filePath, finalX, finalY, allPaths)
+              await triggerWheel(filePath, finalX, finalY, allPaths, fileType)
             } else if (msg.type === 'DISMISS') {
               console.log('[hook] Dismiss request from native hook')
               hideWheel()

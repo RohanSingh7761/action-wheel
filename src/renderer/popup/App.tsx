@@ -5,7 +5,23 @@ import FormatPicker from './FormatPicker'
 import CropEditor from './CropEditor'
 import CompressSlider from './CompressSlider'
 import PdfReorder from './PdfReorder'
-import { ConvertIcon, CropIcon, CompressIcon, CloseIcon, PdfIcon } from '../shared/Icons'
+import PdfSplitModal from './PdfSplitModal'
+import PdfSignModal from './PdfSignModal'
+import PdfMergeModal from './PdfMergeModal'
+import PdfProtectModal from './PdfProtectModal'
+import PdfEditModal from './PdfEditModal'
+import {
+  ConvertIcon,
+  CropIcon,
+  CompressIcon,
+  CloseIcon,
+  PdfIcon,
+  EditIcon,
+  SignIcon,
+  SplitIcon,
+  LockIcon,
+  MergeIcon
+} from '../shared/Icons'
 
 export default function App(): React.ReactElement {
   const [initData, setInitData] = useState<PopupInitPayload | null>(null)
@@ -66,8 +82,33 @@ export default function App(): React.ReactElement {
           title: initData.isMultiple ? 'Compress All Images' : 'Compress Image',
           icon: <CompressIcon size={15} strokeWidth={1.8} />
         }
+      case 'pdf-edit':
+        return {
+          title: 'Edit PDF Document',
+          icon: <EditIcon size={15} strokeWidth={1.8} />
+        }
+      case 'pdf-sign':
+        return {
+          title: 'Sign PDF Document',
+          icon: <SignIcon size={15} strokeWidth={1.8} />
+        }
+      case 'pdf-split':
+        return {
+          title: 'Split & Extract Pages',
+          icon: <SplitIcon size={15} strokeWidth={1.8} />
+        }
+      case 'pdf-merge':
+        return {
+          title: 'Merge Multiple PDFs',
+          icon: <MergeIcon size={15} strokeWidth={1.8} />
+        }
+      case 'pdf-protect':
+        return {
+          title: initData.isMultiple ? 'Protect All PDFs' : 'Protect / Unlock PDF',
+          icon: <LockIcon size={15} strokeWidth={1.8} />
+        }
       default:
-        return { title: 'Image Settings', icon: null }
+        return { title: 'Action Wheel Settings', icon: null }
     }
   }
 
@@ -125,6 +166,21 @@ export default function App(): React.ReactElement {
           )}
           {initData.action === 'compress' && (
             <CompressSlider filePath={initData.filePath} />
+          )}
+          {initData.action === 'pdf-edit' && (
+            <PdfEditModal filePath={initData.filePath} />
+          )}
+          {initData.action === 'pdf-sign' && (
+            <PdfSignModal filePath={initData.filePath} />
+          )}
+          {initData.action === 'pdf-split' && (
+            <PdfSplitModal filePath={initData.filePath} />
+          )}
+          {initData.action === 'pdf-merge' && (
+            <PdfMergeModal filePath={initData.filePath} filePaths={initData.filePaths} />
+          )}
+          {initData.action === 'pdf-protect' && (
+            <PdfProtectModal filePath={initData.filePath} isMultiple={initData.isMultiple} />
           )}
         </div>
       </div>

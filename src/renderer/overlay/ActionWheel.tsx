@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import WheelSegment from './WheelSegment'
 import CenterPreview from './CenterPreview'
 import type { ActionId, TriggerPayload } from '../../shared/ipc-types'
-import { ACTIONS } from '../../shared/ipc-types'
+import { ACTIONS, PDF_ACTIONS_SINGLE, PDF_ACTIONS_MULTIPLE } from '../../shared/ipc-types'
 import { CloseIcon } from '../shared/Icons'
 
 interface ActionWheelProps {
@@ -61,8 +61,13 @@ export default function ActionWheel({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const isSubmittingRef = useRef(false)
 
-  // Multiple images selected: only show 3 buttons ("All to PDF", "Convert All", "Compress All")
-  const activeActions = triggerData.isMultiple
+  // Dynamically select action set based on file type and selection size
+  const isPdf = triggerData.fileType === 'pdf' || triggerData.filePath.toLowerCase().endsWith('.pdf')
+  const activeActions = isPdf
+    ? triggerData.isMultiple
+      ? PDF_ACTIONS_MULTIPLE
+      : PDF_ACTIONS_SINGLE
+    : triggerData.isMultiple
     ? ACTIONS.filter((a) => a.id !== 'crop')
     : ACTIONS
   const totalSegments = activeActions.length
@@ -81,7 +86,12 @@ export default function ActionWheel({
       const api = (window as any).overlayAPI
       if (!api) return
       try {
-        await api.selectAction({ action, filePath, filePaths: triggerData.filePaths })
+        await api.selectAction({
+          action,
+          filePath,
+          filePaths: triggerData.filePaths,
+          fileType: triggerData.fileType
+        })
       } catch (err) {
         console.error('selectAction error:', err)
       } finally {
@@ -90,7 +100,7 @@ export default function ActionWheel({
         }, 500)
       }
     },
-    [isProcessing, triggerData.filePaths]
+    [isProcessing, triggerData.filePaths, triggerData.fileType]
   )
 
   // Escape or Tab key dismisses

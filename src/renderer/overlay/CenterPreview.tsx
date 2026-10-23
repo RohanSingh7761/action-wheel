@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { ActionMeta } from '../../shared/ipc-types'
-import { ApertureIcon, CloseIcon } from '../shared/Icons'
+import { ApertureIcon, CloseIcon, PdfIcon } from '../shared/Icons'
 
 interface CenterPreviewProps {
   thumbnail?: string
@@ -22,9 +22,14 @@ export default function CenterPreview({
   hoveredAction,
   onCancel
 }: CenterPreviewProps): React.ReactElement {
+  const isPdf = filePath.toLowerCase().endsWith('.pdf')
   const count = filePaths?.length || 1
-  const fileName = filePath.split('\\').pop()?.split('/').pop() ?? 'Image'
-  const truncName = isMultiple ? `${count} Images` : fileName.length > 14 ? fileName.slice(0, 12) + '…' : fileName
+  const fileName = filePath.split('\\').pop()?.split('/').pop() ?? (isPdf ? 'Document.pdf' : 'Image')
+  const truncName = isMultiple
+    ? `${count} ${isPdf ? 'PDFs' : 'Images'}`
+    : fileName.length > 14
+    ? fileName.slice(0, 12) + '…'
+    : fileName
   const subLabel = isMultiple ? 'All Selected' : 'Release to execute'
 
   return (
@@ -93,7 +98,11 @@ export default function CenterPreview({
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
         >
-          <ApertureIcon size={18} strokeWidth={1.5} className="text-zinc-500 mb-0.5" />
+          {isPdf ? (
+            <PdfIcon size={18} strokeWidth={1.5} className="text-rose-400 mb-0.5" />
+          ) : (
+            <ApertureIcon size={18} strokeWidth={1.5} className="text-zinc-500 mb-0.5" />
+          )}
           <span
             className="text-zinc-300 font-medium max-w-[96px] truncate text-[11px] leading-tight"
             title={fileName}
