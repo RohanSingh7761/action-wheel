@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Reorder, motion } from 'framer-motion'
+import React, { useState, useEffect } from 'react'
+import { Reorder } from 'framer-motion'
 import { PdfIcon } from '../shared/Icons'
 
 interface PdfMergeModalProps {
@@ -16,6 +16,13 @@ export default function PdfMergeModal({ filePath, filePaths }: PdfMergeModalProp
   const baseNameWithoutExt = firstFileName.replace(/\.[^/.]+$/, '')
   const defaultDocName = `${baseNameWithoutExt} (Merged)`
   const [pdfName, setPdfName] = useState<string>(defaultDocName)
+
+  // Reset if filePaths change
+  useEffect(() => {
+    const list = filePaths && filePaths.length > 0 ? filePaths : [filePath]
+    setItems(list)
+    setIsSubmitting(false)
+  }, [filePath, filePaths])
 
   const moveItem = (fromIndex: number, direction: 'up' | 'down') => {
     const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1
@@ -71,78 +78,108 @@ export default function PdfMergeModal({ filePath, filePaths }: PdfMergeModalProp
           </div>
         </div>
 
-        {/* Reorderable List */}
-        <div className="mb-1 flex items-center justify-between">
+        {/* Reorderable List Section Header */}
+        <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[11px] font-semibold text-zinc-300">
-            Page Order (Drag or use arrows)
+            Page Order
           </span>
-          <span className="text-[10px] text-zinc-500">Top file will appear first</span>
+          <span className="text-[10px] text-zinc-500">Drag items or use buttons to reorder</span>
         </div>
 
-        <div className="max-h-[290px] overflow-y-auto pr-1">
-          <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-2">
-            {items.map((item, index) => {
-              const name = item.split('\\').pop()?.split('/').pop() || item
-              return (
-                <Reorder.Item
-                  key={item}
-                  value={item}
-                  className="bg-black/40 hover:bg-black/60 border border-white/[0.08] hover:border-white/[0.2] rounded-xl p-2.5 flex items-center justify-between gap-3 cursor-grab active:cursor-grabbing transition-colors shadow-sm"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="w-5 h-5 rounded-md bg-white/[0.06] flex items-center justify-center text-[10px] font-mono text-zinc-400 shrink-0">
-                      {index + 1}
-                    </span>
-                    <div className="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
-                      <PdfIcon size={14} className="text-red-400" />
-                    </div>
-                    <div className="truncate">
-                      <p className="text-xs font-medium text-white truncate">{name}</p>
-                      <p className="text-[10px] text-zinc-500 truncate font-mono">{item}</p>
-                    </div>
-                  </div>
+        <Reorder.Group
+          axis="y"
+          values={items}
+          onReorder={setItems}
+          className="space-y-1.5 overflow-y-auto max-h-[250px] pr-1"
+        >
+          {items.map((item, index) => {
+            const name = item.split('\\').pop()?.split('/').pop() || item
+            return (
+              <Reorder.Item
+                key={item}
+                value={item}
+                whileDrag={{
+                  scale: 1.02,
+                  boxShadow: '0 12px 28px rgba(0, 0, 0, 0.75)',
+                  borderColor: 'rgba(99, 102, 241, 0.6)'
+                }}
+                className="flex items-center gap-2.5 p-2 rounded-xl border border-white/[0.06] bg-[#16181f]/90 hover:bg-[#1c1f28] hover:border-white/20 transition-colors cursor-grab active:cursor-grabbing select-none"
+              >
+                {/* Drag Handle & Order Number */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-zinc-500 text-xs font-mono font-bold select-none px-0.5">
+                    ⋮⋮
+                  </span>
+                  <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-semibold bg-white/[0.08] text-zinc-300 border border-white/[0.06]">
+                    {index + 1}
+                  </span>
+                </div>
 
-                  {/* Reorder Buttons */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      disabled={index === 0}
-                      onClick={() => moveItem(index, 'up')}
-                      className="w-6 h-6 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] disabled:opacity-20 text-zinc-300 text-xs flex items-center justify-center transition-colors"
-                      title="Move Up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      disabled={index === items.length - 1}
-                      onClick={() => moveItem(index, 'down')}
-                      className="w-6 h-6 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] disabled:opacity-20 text-zinc-300 text-xs flex items-center justify-center transition-colors"
-                      title="Move Down"
-                    >
-                      ↓
-                    </button>
-                  </div>
-                </Reorder.Item>
-              )
-            })}
-          </Reorder.Group>
-        </div>
+                {/* PDF Icon Badge */}
+                <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0 pointer-events-none">
+                  <PdfIcon size={14} className="text-red-400" />
+                </div>
+
+                {/* File Info */}
+                <div className="flex-1 min-w-0 pointer-events-none">
+                  <p className="text-xs font-medium text-zinc-200 truncate" title={name}>
+                    {name}
+                  </p>
+                  <p className="text-[9.5px] text-zinc-500 truncate font-mono" title={item}>
+                    {item}
+                  </p>
+                </div>
+
+                {/* Reorder Buttons */}
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveItem(index, 'up')
+                    }}
+                    className="w-5 h-5 rounded flex items-center justify-center text-[10px] text-zinc-400 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === items.length - 1}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveItem(index, 'down')
+                    }}
+                    className="w-5 h-5 rounded flex items-center justify-center text-[10px] text-zinc-400 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                </div>
+              </Reorder.Item>
+            )
+          })}
+        </Reorder.Group>
       </div>
 
       {/* Footer Actions */}
       <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between mt-3">
         <button
+          type="button"
           onClick={handleCancel}
-          className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-white/[0.08] transition-all cursor-pointer active:scale-95"
         >
           Cancel
         </button>
 
         <button
+          type="button"
           onClick={handleMerge}
           disabled={items.length < 2 || isSubmitting}
           className={`px-5 py-2 rounded-xl text-xs font-semibold shadow-lg transition-all flex items-center gap-2 ${
             items.length >= 2 && !isSubmitting
-              ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 cursor-pointer'
+              ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 cursor-pointer active:scale-95'
               : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
           }`}
         >

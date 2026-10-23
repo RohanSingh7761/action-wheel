@@ -15,8 +15,16 @@ export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModa
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Clear all states and re-inspect whenever filePath changes
   useEffect(() => {
     let isMounted = true
+    setPassword('')
+    setConfirmPassword('')
+    setShowPassword(false)
+    setError(null)
+    setIsSubmitting(false)
+    setLoading(true)
+
     const checkStatus = async () => {
       try {
         const api = (window as any).popupAPI
@@ -55,12 +63,21 @@ export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModa
     setIsSubmitting(true)
     const api = (window as any).popupAPI
     if (api?.confirm) {
-      await api.confirm({
-        params: {
-          mode: isEncrypted ? 'unlock' : 'protect',
-          password: password.trim()
+      try {
+        const res = await api.confirm({
+          params: {
+            mode: isEncrypted ? 'unlock' : 'protect',
+            password: password.trim()
+          }
+        })
+        if (res && res.success === false && res.error) {
+          setError(res.error)
+          setIsSubmitting(false)
         }
-      })
+      } catch (err: any) {
+        setError(err?.message || 'Operation failed')
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -70,7 +87,7 @@ export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModa
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 min-h-[300px]">
         <div className="w-7 h-7 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
         <span className="text-xs text-zinc-400 font-medium tracking-wide">
           Inspecting encryption status…
@@ -153,7 +170,7 @@ export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModa
           )}
 
           {error && (
-            <p className="text-[11px] text-red-400 font-medium px-1 flex items-center gap-1">
+            <p className="text-[11px] text-red-400 font-medium px-1 flex items-center gap-1.5 animate-pulse">
               <span>⚠</span> {error}
             </p>
           )}

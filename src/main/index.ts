@@ -332,16 +332,15 @@ function registerIpcHandlers(): void {
 
   // Popup confirmed with params
   ipcMain.handle(IPC.POPUP_CONFIRM, async (_e, { params }: PopupConfirmPayload) => {
-    hidePopup()
     if (!currentFilePath || !pendingAction) {
+      hidePopup()
       hideWheel()
-      return
+      return { success: false, error: 'No active session' }
     }
 
     const action = pendingAction
     const filePath = currentFilePath
     const filePaths = currentFilePaths.length > 0 ? currentFilePaths : [filePath]
-    pendingAction = null
 
     try {
       let result
@@ -350,18 +349,29 @@ function registerIpcHandlers(): void {
       } else {
         result = await processAction(action, filePath, params)
       }
+
+      pendingAction = null
+      hidePopup()
       hideWheel()
 
       if (result.outputPath) {
-        // Open file or folder automatically on single item, or when multiple items merged to single PDF
         const isMultiple = filePaths.length > 1
-        if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge' || action === 'pdf-to-images') {
+        if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge' || action === 'pdf-to-images' || action === 'pdf-compress' || action === 'pdf-protect') {
           shell.openPath(result.outputPath)
         }
       }
-    } catch (err) {
-      hideWheel()
+      return { success: true }
+    } catch (err: any) {
       console.error('[process] Error processing popup action:', err)
+      if (action === 'pdf-protect') {
+        const msg = err?.message?.toLowerCase().includes('password')
+          ? 'Incorrect password. Please verify and try again.'
+          : String(err?.message || err)
+        return { success: false, error: msg }
+      }
+      hidePopup()
+      hideWheel()
+      return { success: false, error: String(err?.message || err) }
     }
   })
 

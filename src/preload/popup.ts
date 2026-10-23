@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('popupAPI', {
   cancel: () => ipcRenderer.send(IPC.POPUP_CANCEL),
   loadImage: (filePath: string): Promise<{ dataUrl: string; width: number; height: number } | null> =>
     ipcRenderer.invoke(IPC.IMAGE_LOAD_PREVIEW, filePath),
-  loadPdfBytes: (filePath: string): Promise<{ isEncrypted: boolean; bytes?: Uint8Array } | null> =>
+  loadPdfBytes: (filePath: string): Promise<{ isEncrypted: boolean; base64?: string } | null> =>
     ipcRenderer.invoke(IPC.PDF_LOAD_BYTES, filePath),
   checkPdfEncrypted: (filePath: string): Promise<boolean> =>
     ipcRenderer.invoke('pdf:check-encrypted', filePath)

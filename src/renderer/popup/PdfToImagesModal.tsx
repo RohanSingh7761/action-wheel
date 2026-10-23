@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs'
+import { base64ToUint8 } from './pdf-renderer'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
+// Bind worker directly to global scope so PDF.js executes synchronously without external worker file or CORS blocks
+;(globalThis as any).pdfjsWorker = pdfjsWorker
 
 interface PdfToImagesModalProps {
   filePath: string
@@ -24,11 +26,12 @@ export default function PdfToImagesModal({ filePath }: PdfToImagesModalProps): R
 
         setStatus('Loading PDF document…')
         const res = await api.loadPdfBytes(filePath)
-        if (!res || !res.bytes) {
-          throw new Error(res?.isEncrypted ? 'Document is password protected' : 'Failed to read PDF bytes')
+        if (!res || !res.base64) {
+          throw new Error(res?.isEncrypted ? 'Document is password protected' : 'Failed to read PDF file')
         }
 
-        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(res.bytes) })
+        const pdfData = base64ToUint8(res.base64)
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData })
         const pdf = await loadingTask.promise
         const total = pdf.numPages
         if (isMounted) setTotalPages(total)

@@ -3,7 +3,7 @@ import { isEncrypted } from '@pdfsmaller/pdf-decrypt'
 
 export interface LoadPdfBytesResult {
   isEncrypted: boolean
-  bytes?: Buffer
+  base64?: string
 }
 
 export async function loadPdfBytes(filePath: string): Promise<LoadPdfBytesResult> {
@@ -17,6 +17,6 @@ export async function loadPdfBytes(filePath: string): Promise<LoadPdfBytesResult
 
   return {
     isEncrypted: false,
-    bytes: fileBytes
+    base64: fileBytes.toString('base64')
   }
 }

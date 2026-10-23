@@ -1,13 +1,24 @@
-import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
+// Bind worker directly to global scope so PDF.js executes synchronously without external worker file or CORS blocks
+;(globalThis as any).pdfjsWorker = pdfjsWorker
 
 export interface RenderedPage {
   pageNumber: number
   width: number
   height: number
   dataUrl: string
+}
+
+export function base64ToUint8(base64: string): Uint8Array {
+  const binary = atob(base64)
+  const len = binary.length
+  const bytes = new Uint8Array(len)
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
 }
 
 export async function loadAndRenderPdf(
@@ -21,7 +32,7 @@ export async function loadAndRenderPdf(
   }
 
   const res = await api.loadPdfBytes(filePath)
-  if (!res || !res.bytes) {
+  if (!res || !res.base64) {
     return {
       isEncrypted: Boolean(res?.isEncrypted),
       pageCount: 0,
@@ -29,7 +40,8 @@ export async function loadAndRenderPdf(
     }
   }
 
-  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(res.bytes) })
+  const pdfData = base64ToUint8(res.base64)
+  const loadingTask = pdfjsLib.getDocument({ data: pdfData })
   const pdf = await loadingTask.promise
   const pageCount = pdf.numPages
   const pagesToLoad = Math.min(pageCount, maxPages)
