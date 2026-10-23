@@ -15,7 +15,6 @@ export type ActionId =
   | 'pdf-sign'
   | 'pdf-split'
   | 'pdf-to-images'
-  | 'pdf-compress'
   | 'pdf-protect'
   | 'pdf-merge'
 
@@ -102,14 +101,6 @@ export const PDF_ACTIONS_SINGLE: ActionMeta[] = [
     needsParams: true
   },
   {
-    id: 'pdf-compress',
-    label: 'Compress',
-    icon: 'compress',
-    color: '#13151b',
-    accentColor: '#ffffff',
-    needsParams: false
-  },
-  {
     id: 'pdf-protect',
     label: 'Protect',
     icon: 'lock',
@@ -127,14 +118,6 @@ export const PDF_ACTIONS_MULTIPLE: ActionMeta[] = [
     color: '#13151b',
     accentColor: '#ffffff',
     needsParams: true
-  },
-  {
-    id: 'pdf-compress',
-    label: 'Compress All',
-    icon: 'compress',
-    color: '#13151b',
-    accentColor: '#ffffff',
-    needsParams: false
   },
   {
     id: 'pdf-to-images',
@@ -290,7 +273,9 @@ export interface PdfMergeParams {
 }
 
 export interface PdfToImagesParams {
-  images: Array<{ pageNumber: number; dataUrl: string }>
+  images?: Array<{ pageNumber: number; dataUrl: string }>
+  batch?: Record<string, Array<{ pageNumber: number; dataUrl: string }>>
+  totalImagesCount: number
 }
 
 export type PopupParams =

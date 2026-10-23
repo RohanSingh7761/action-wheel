@@ -21,9 +21,8 @@ import { compressImage } from './compress'
 import { signPdf } from './pdf/pdf-sign'
 import { splitPdf } from './pdf/pdf-split'
 import { mergePdfs } from './pdf/pdf-merge'
-import { savePdfImages } from './pdf/pdf-to-images'
+import { savePdfImages, saveBatchPdfImages } from './pdf/pdf-to-images'
 import { protectOrUnlockPdf } from './pdf/pdf-protect'
-import { compressPdf } from './pdf/pdf-compress'
 import { editPdf } from './pdf/pdf-edit'
 
 export interface ProcessResult {
@@ -89,13 +88,13 @@ export async function processAction(
     }
 
     case 'pdf-to-images': {
-      if (!params || !('images' in params)) throw new Error('pdf-to-images requires images')
-      const result = await savePdfImages(filePath, (params as PdfToImagesParams).images)
-      return result
-    }
-
-    case 'pdf-compress': {
-      const result = await compressPdf(filePath)
+      const p = params as PdfToImagesParams | undefined
+      if (p?.batch) {
+        const result = await saveBatchPdfImages(p.batch)
+        return result
+      }
+      if (!p?.images) throw new Error('pdf-to-images requires images')
+      const result = await savePdfImages(filePath, p.images)
       return result
     }
 
@@ -136,6 +135,13 @@ export async function processBatchAction(
     return {
       outputPath: out,
       sizeInfo: `${filePaths.length} PDFs merged`
+    }
+  }
+
+  if (action === 'pdf-to-images') {
+    const p = params as PdfToImagesParams | undefined
+    if (p?.batch) {
+      return await saveBatchPdfImages(p.batch)
     }
   }
 

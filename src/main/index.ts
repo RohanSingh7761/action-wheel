@@ -356,7 +356,13 @@ function registerIpcHandlers(): void {
 
       if (result.outputPath) {
         const isMultiple = filePaths.length > 1
-        if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge' || action === 'pdf-to-images' || action === 'pdf-compress' || action === 'pdf-protect') {
+        if (action === 'pdf-to-images') {
+          // Do not open if more than one image after pdf to image, or multiple pdf to image
+          const totalCount = (params as any)?.totalImagesCount || 0
+          if (!isMultiple && totalCount === 1) {
+            shell.openPath(result.outputPath)
+          }
+        } else if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge' || action === 'pdf-protect') {
           shell.openPath(result.outputPath)
         }
       }
@@ -442,7 +448,7 @@ async function processImmediate(action: ActionId, filePath: string): Promise<voi
 
     if (action !== 'copy' && result.outputPath) {
       const isMultiple = currentFilePaths.length > 1
-      if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge' || action === 'pdf-to-images' || action === 'pdf-compress') {
+      if (!isMultiple || action === 'convert-pdf' || action === 'pdf-merge') {
         console.log(`[shell] Opening output file: ${result.outputPath}`)
         const openErr = await shell.openPath(result.outputPath)
         if (openErr) {

@@ -189,7 +189,7 @@ export default function App(): React.ReactElement {
             <PdfProtectModal filePath={initData.filePath} isMultiple={initData.isMultiple} />
           )}
           {initData.action === 'pdf-to-images' && (
-            <PdfToImagesModal filePath={initData.filePath} />
+            <PdfToImagesModal filePath={initData.filePath} filePaths={initData.filePaths} />
           )}
         </div>
       </div>

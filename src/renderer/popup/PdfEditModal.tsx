@@ -6,34 +6,63 @@ interface PdfEditModalProps {
   filePath: string
 }
 
-type ToolMode = 'text' | 'whiteout' | 'redact' | 'highlight'
+type ToolMode = 'select' | 'text' | 'whiteout' | 'redact' | 'highlight'
+
+interface EditorAnnotation extends PdfEditAnnotation {
+  id: string
+}
+
+const PRESET_COLORS = [
+  '#000000',
+  '#dc2626',
+  '#2563eb',
+  '#16a34a',
+  '#d97706',
+  '#7c3aed',
+  '#ffffff'
+]
 
 export default function PdfEditModal({ filePath }: PdfEditModalProps): React.ReactElement {
   const [loading, setLoading] = useState(true)
   const [pages, setPages] = useState<PageDetail[]>([])
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Current active tool
+  // Zoom control
+  const [zoom, setZoom] = useState<number>(1.0)
+
+  // Current active tool: 'select' allows clicking/moving/resizing; others allow drawing
   const [tool, setTool] = useState<ToolMode>('highlight')
+
+  // Selected annotation
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // Text options
   const [textInput, setTextInput] = useState('Confidential')
-  const [fontSize, setFontSize] = useState<number>(14)
+  const [fontSize, setFontSize] = useState<number>(16)
   const [textColor, setTextColor] = useState<string>('#000000')
 
   // All annotations across all pages
-  const [annotations, setAnnotations] = useState<PdfEditAnnotation[]>([])
+  const [annotations, setAnnotations] = useState<EditorAnnotation[]>([])
 
-  // Drawing rectangle state
+  // Interaction states: drawing, moving, resizing
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [interactionMode, setInteractionMode] = useState<'none' | 'draw' | 'move' | 'resize'>('none')
+  const [moveStartPos, setMoveStartPos] = useState<{ startX: number; startY: number; origX: number; origY: number; origW: number; origH: number } | null>(null)
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
-  // Load PDF pages
+  // Reset all progress when filePath changes or on fresh mount
   useEffect(() => {
     let isMounted = true
+    setAnnotations([])
+    setSelectedId(null)
+    setZoom(1.0)
+    setTool('highlight')
+    setIsSubmitting(false)
+    setLoading(true)
+
     const loadDetails = async () => {
       try {
         const result = await loadAndRenderPdf(filePath)
@@ -53,88 +82,221 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
     }
   }, [filePath])
 
+  // Keyboard shortcut to delete selected annotation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        // If typing in input, don't delete annotation
+        if (document.activeElement?.tagName === 'INPUT') return
+        e.preventDefault()
+        setAnnotations((prev) => prev.filter((a) => a.id !== selectedId))
+        setSelectedId(null)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [selectedId])
+
   const activePageDetail = pages[currentPage - 1]
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  // When selected annotation changes and it's text, sync toolbar
+  useEffect(() => {
+    if (!selectedId) return
+    const ann = annotations.find((a) => a.id === selectedId)
+    if (ann && ann.type === 'text') {
+      if (ann.text) setTextInput(ann.text)
+      if (ann.fontSize) setFontSize(ann.fontSize)
+      if (ann.color) setTextColor(ann.color)
+    }
+  }, [selectedId])
+
+  // Live update text annotation on PDF when user types in the input
+  const handleTextInputChange = (val: string) => {
+    setTextInput(val)
+    if (selectedId) {
+      setAnnotations((prev) =>
+        prev.map((a) => (a.id === selectedId && a.type === 'text' ? { ...a, text: val } : a))
+      )
+    }
+  }
+
+  // Live update color
+  const handleColorChange = (newColor: string) => {
+    setTextColor(newColor)
+    if (selectedId) {
+      setAnnotations((prev) =>
+        prev.map((a) => (a.id === selectedId ? { ...a, color: newColor } : a))
+      )
+    }
+  }
+
+  // Live update font size
+  const handleFontSizeChange = (size: number) => {
+    setFontSize(size)
+    if (selectedId) {
+      setAnnotations((prev) =>
+        prev.map((a) => (a.id === selectedId && a.type === 'text' ? { ...a, fontSize: size } : a))
+      )
+    }
+  }
+
+  // Mouse Down on Page
+  const handlePageMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const container = containerRef.current
     if (!container || !activePageDetail) return
     const rect = container.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const x = (e.clientX - rect.left) / zoom
+    const y = (e.clientY - rect.top) / zoom
+
+    if (tool === 'select') {
+      setSelectedId(null)
+      return
+    }
 
     if (tool === 'text') {
-      if (!textInput.trim()) return
-      // Calculate scale from container size to actual PDF points
-      const scaleX = activePageDetail.width / rect.width
-      const scaleY = activePageDetail.height / rect.height
+      const scaleX = activePageDetail.width / (rect.width / zoom)
+      const scaleY = activePageDetail.height / (rect.height / zoom)
 
-      const newAnnotation: PdfEditAnnotation = {
+      const newId = Math.random().toString(36).substring(2, 9)
+      const newAnnotation: EditorAnnotation = {
+        id: newId,
         type: 'text',
         page: currentPage,
         x: Math.round(x * scaleX),
         y: Math.round(y * scaleY),
-        text: textInput.trim(),
+        text: textInput.trim() || 'Custom Text',
         fontSize,
         color: textColor
       }
       setAnnotations((prev) => [...prev, newAnnotation])
+      setSelectedId(newId)
     } else {
+      setSelectedId(null)
       setDragStart({ x, y })
       setDragCurrent({ x, y })
+      setInteractionMode('draw')
     }
   }
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!dragStart || !containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
-    const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height))
-    setDragCurrent({ x, y })
+  // Mouse Move on Page
+  const handlePageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = containerRef.current
+    if (!container || !activePageDetail) return
+    const rect = container.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / zoom
+    const y = (e.clientY - rect.top) / zoom
+
+    if (interactionMode === 'draw' && dragStart) {
+      setDragCurrent({ x, y })
+    } else if (interactionMode === 'move' && moveStartPos && selectedId) {
+      const scaleX = activePageDetail.width / (rect.width / zoom)
+      const scaleY = activePageDetail.height / (rect.height / zoom)
+      const dx = (x - moveStartPos.startX) * scaleX
+      const dy = (y - moveStartPos.startY) * scaleY
+
+      setAnnotations((prev) =>
+        prev.map((a) =>
+          a.id === selectedId
+            ? {
+                ...a,
+                x: Math.round(Math.max(0, moveStartPos.origX + dx)),
+                y: Math.round(Math.max(0, moveStartPos.origY + dy))
+              }
+            : a
+        )
+      )
+    } else if (interactionMode === 'resize' && moveStartPos && selectedId) {
+      const scaleX = activePageDetail.width / (rect.width / zoom)
+      const scaleY = activePageDetail.height / (rect.height / zoom)
+      const dx = (x - moveStartPos.startX) * scaleX
+      const dy = (y - moveStartPos.startY) * scaleY
+
+      setAnnotations((prev) =>
+        prev.map((a) =>
+          a.id === selectedId
+            ? {
+                ...a,
+                width: Math.round(Math.max(15, moveStartPos.origW + dx)),
+                height: Math.round(Math.max(10, moveStartPos.origH + dy))
+              }
+            : a
+        )
+      )
+    }
   }
 
-  const handleMouseUp = () => {
-    if (!dragStart || !dragCurrent || !containerRef.current || !activePageDetail) {
-      setDragStart(null)
-      setDragCurrent(null)
-      return
-    }
+  // Mouse Up
+  const handlePageMouseUp = () => {
+    if (interactionMode === 'draw' && dragStart && dragCurrent && activePageDetail && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const left = Math.min(dragStart.x, dragCurrent.x)
+      const top = Math.min(dragStart.y, dragCurrent.y)
+      const width = Math.abs(dragCurrent.x - dragStart.x)
+      const height = Math.abs(dragCurrent.y - dragStart.y)
 
-    const rect = containerRef.current.getBoundingClientRect()
-    const left = Math.min(dragStart.x, dragCurrent.x)
-    const top = Math.min(dragStart.y, dragCurrent.y)
-    const width = Math.abs(dragCurrent.x - dragStart.x)
-    const height = Math.abs(dragCurrent.y - dragStart.y)
+      if (width > 5 && height > 5) {
+        const scaleX = activePageDetail.width / (rect.width / zoom)
+        const scaleY = activePageDetail.height / (rect.height / zoom)
 
-    // Ignore tiny accidental clicks
-    if (width > 5 && height > 5) {
-      const scaleX = activePageDetail.width / rect.width
-      const scaleY = activePageDetail.height / rect.height
-
-      const newAnnotation: PdfEditAnnotation = {
-        type: tool,
-        page: currentPage,
-        x: Math.round(left * scaleX),
-        y: Math.round(top * scaleY),
-        width: Math.round(width * scaleX),
-        height: Math.round(height * scaleY)
+        const newId = Math.random().toString(36).substring(2, 9)
+        const newAnnotation: EditorAnnotation = {
+          id: newId,
+          type: tool as 'whiteout' | 'redact' | 'highlight',
+          page: currentPage,
+          x: Math.round(left * scaleX),
+          y: Math.round(top * scaleY),
+          width: Math.round(width * scaleX),
+          height: Math.round(height * scaleY)
+        }
+        setAnnotations((prev) => [...prev, newAnnotation])
+        setSelectedId(newId)
       }
-      setAnnotations((prev) => [...prev, newAnnotation])
     }
 
     setDragStart(null)
     setDragCurrent(null)
+    setInteractionMode('none')
+    setMoveStartPos(null)
   }
 
-  const undo = () => {
-    setAnnotations((prev) => prev.slice(0, -1))
+  // Start moving an existing annotation
+  const startMove = (e: React.MouseEvent, ann: EditorAnnotation) => {
+    e.stopPropagation()
+    setSelectedId(ann.id)
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / zoom
+    const y = (e.clientY - rect.top) / zoom
+
+    setMoveStartPos({
+      startX: x,
+      startY: y,
+      origX: ann.x,
+      origY: ann.y,
+      origW: ann.width || 0,
+      origH: ann.height || 0
+    })
+    setInteractionMode('move')
   }
 
-  const clearCurrentPage = () => {
-    setAnnotations((prev) => prev.filter((a) => a.page !== currentPage))
-  }
+  // Start resizing an existing annotation
+  const startResize = (e: React.MouseEvent, ann: EditorAnnotation) => {
+    e.stopPropagation()
+    setSelectedId(ann.id)
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / zoom
+    const y = (e.clientY - rect.top) / zoom
 
-  const removeAnnotation = (index: number) => {
-    setAnnotations((prev) => prev.filter((_, i) => i !== index))
+    setMoveStartPos({
+      startX: x,
+      startY: y,
+      origX: ann.x,
+      origY: ann.y,
+      origW: ann.width || 0,
+      origH: ann.height || 0
+    })
+    setInteractionMode('resize')
   }
 
   const handleSave = async () => {
@@ -142,22 +304,26 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
     setIsSubmitting(true)
     const api = (window as any).popupAPI
     if (api?.confirm) {
+      // Strip internal IDs before sending to main process
+      const cleaned = annotations.map(({ id, ...rest }) => rest)
       await api.confirm({
         params: {
-          annotations
+          annotations: cleaned
         }
       })
     }
   }
 
   const handleCancel = () => {
+    // Progress is completely discarded on cancel
+    setAnnotations([])
     ;(window as any).popupAPI?.cancel()
   }
 
   if (loading || !activePageDetail) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3">
-        <div className="w-7 h-7 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 min-h-[400px]">
+        <div className="w-8 h-8 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
         <span className="text-xs text-zinc-400 font-medium tracking-wide">
           Loading document editor…
         </span>
@@ -165,7 +331,8 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
     )
   }
 
-  // Current live drawing preview box in display coordinates
+  const pageAnnotations = annotations.filter((a) => a.page === currentPage)
+
   const drawingBox =
     dragStart && dragCurrent
       ? {
@@ -176,18 +343,15 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
         }
       : null
 
-  const pageAnnotations = annotations
-    .map((ann, idx) => ({ ...ann, globalIndex: idx }))
-    .filter((a) => a.page === currentPage)
-
   return (
-    <div className="flex-1 flex flex-col justify-between select-none h-full min-h-[460px]">
+    <div className="flex-1 flex flex-col justify-between select-none h-full min-h-[520px]">
       <div>
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-3 p-2 bg-black/40 border border-white/[0.06] rounded-xl mb-3">
+        {/* Top Primary Toolbar */}
+        <div className="flex items-center justify-between gap-3 p-2.5 bg-black/50 border border-white/[0.08] rounded-2xl mb-3 shadow-inner">
           {/* Tool Selector */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {[
+              { id: 'select' as ToolMode, label: 'Select / Move', icon: '↖' },
               { id: 'highlight' as ToolMode, label: 'Highlight', icon: '🟨' },
               { id: 'whiteout' as ToolMode, label: 'Whiteout', icon: '⬜' },
               { id: 'redact' as ToolMode, label: 'Redact', icon: '⬛' },
@@ -195,11 +359,14 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
             ].map((t) => (
               <button
                 key={t.id}
-                onClick={() => setTool(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                onClick={() => {
+                  setTool(t.id)
+                  if (t.id !== 'select') setSelectedId(null)
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   tool === t.id
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
                 }`}
               >
                 <span>{t.icon}</span>
@@ -208,46 +375,84 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
             ))}
           </div>
 
-          {/* Action Buttons: Undo & Clear */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={undo}
-              disabled={annotations.length === 0}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed text-xs text-zinc-300 font-medium transition-colors"
-              title="Undo last annotation"
-            >
-              Undo
-            </button>
-            <button
-              onClick={clearCurrentPage}
-              disabled={pageAnnotations.length === 0}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-red-500/20 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed text-xs text-zinc-400 font-medium transition-colors"
-              title="Clear annotations on this page"
-            >
-              Clear Page
-            </button>
+          {/* Zoom Controls & Page Navigation */}
+          <div className="flex items-center gap-3">
+            {/* Zoom Widget */}
+            <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/[0.06]">
+              <button
+                onClick={() => setZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))}
+                className="w-6 h-6 rounded-lg hover:bg-white/10 text-xs text-zinc-300 font-bold flex items-center justify-center transition-colors"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <button
+                onClick={() => setZoom(1.0)}
+                className="px-2 py-0.5 text-[11px] font-mono text-zinc-300 hover:text-white transition-colors"
+                title="Reset Zoom"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.min(2.5, Math.round((z + 0.25) * 100) / 100))}
+                className="w-6 h-6 rounded-lg hover:bg-white/10 text-xs text-zinc-300 font-bold flex items-center justify-center transition-colors"
+                title="Zoom In"
+              >
+                +
+              </button>
+            </div>
+
+            {/* Page Navigation */}
+            <div className="flex items-center gap-1.5 bg-white/[0.04] p-1 rounded-xl border border-white/[0.06]">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => {
+                  setSelectedId(null)
+                  setCurrentPage((p) => Math.max(1, p - 1))
+                }}
+                className="w-6 h-6 rounded-lg hover:bg-white/10 disabled:opacity-20 text-xs text-zinc-300 flex items-center justify-center transition-colors"
+              >
+                ‹
+              </button>
+              <span className="text-[11px] font-mono text-zinc-400 px-1">
+                {currentPage} / {pages.length}
+              </span>
+              <button
+                disabled={currentPage >= pages.length}
+                onClick={() => {
+                  setSelectedId(null)
+                  setCurrentPage((p) => Math.min(pages.length, p + 1))
+                }}
+                className="w-6 h-6 rounded-lg hover:bg-white/10 disabled:opacity-20 text-xs text-zinc-300 flex items-center justify-center transition-colors"
+              >
+                ›
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Text tool secondary controls */}
-        {tool === 'text' && (
-          <div className="flex items-center gap-3 p-2 bg-white/[0.02] border border-white/[0.06] rounded-xl mb-3">
+        {/* Secondary Toolbar: Text & Color Controls (shown when tool === 'text' or text is selected) */}
+        {(tool === 'text' || (selectedId && annotations.find((a) => a.id === selectedId)?.type === 'text')) && (
+          <div className="flex items-center gap-3 p-2.5 bg-white/[0.03] border border-white/[0.08] rounded-2xl mb-3 shadow-sm">
+            <span className="text-[11px] font-semibold text-zinc-400">Text:</span>
             <input
               type="text"
-              placeholder="Text to stamp"
+              placeholder="Type custom text…"
               value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              className="flex-1 px-2.5 py-1 rounded-lg bg-black/40 border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500"
+              onChange={(e) => handleTextInputChange(e.target.value)}
+              className="flex-1 px-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.1] text-xs text-white focus:outline-none focus:border-indigo-500 tracking-wide font-sans"
             />
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-zinc-400">Size:</span>
-              {[12, 16, 22].map((s) => (
+
+            {/* Font Size Pills */}
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-zinc-400">Size:</span>
+              {[12, 16, 20, 26, 34].map((s) => (
                 <button
                   key={s}
-                  onClick={() => setFontSize(s)}
-                  className={`w-6 h-6 rounded text-[11px] font-mono transition-colors ${
+                  onClick={() => handleFontSizeChange(s)}
+                  className={`w-6 h-6 rounded-lg text-[10px] font-mono transition-all ${
                     fontSize === s
-                      ? 'bg-indigo-600 text-white font-bold'
+                      ? 'bg-indigo-600 text-white font-bold shadow'
                       : 'bg-white/[0.06] text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -255,52 +460,54 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1.5">
-              {['#000000', '#ef4444', '#2563eb', '#ffffff'].map((c) => (
+
+            {/* Interactive Color Palette + Native Color Picker */}
+            <div className="flex items-center gap-1.5 pl-2 border-l border-white/[0.08]">
+              {PRESET_COLORS.map((c) => (
                 <button
                   key={c}
-                  onClick={() => setTextColor(c)}
+                  onClick={() => handleColorChange(c)}
                   style={{ backgroundColor: c }}
-                  className={`w-4 h-4 rounded-full border transition-transform ${
-                    textColor === c ? 'border-white scale-125' : 'border-white/20'
+                  className={`w-5 h-5 rounded-full border transition-transform ${
+                    textColor.toLowerCase() === c.toLowerCase()
+                      ? 'border-white scale-125 shadow-md'
+                      : 'border-white/20 hover:scale-110'
                   }`}
                 />
               ))}
+              {/* Native color picker */}
+              <label className="relative w-6 h-6 rounded-full overflow-hidden border border-white/40 cursor-pointer shadow-sm hover:scale-110 transition-transform">
+                <input
+                  type="color"
+                  value={textColor}
+                  onChange={(e) => handleColorChange(e.target.value)}
+                  className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
+                />
+                <span
+                  style={{ backgroundColor: textColor }}
+                  className="block w-full h-full"
+                  title="Choose custom color"
+                />
+              </label>
             </div>
           </div>
         )}
 
-        {/* Page Switcher Header */}
-        <div className="flex items-center justify-between mb-2 px-1">
-          <span className="text-[11px] font-mono text-zinc-400">
-            Page {currentPage} of {pages.length} · {pageAnnotations.length} edit(s) on this page
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="w-6 h-6 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed text-xs text-white flex items-center justify-center transition-colors"
-            >
-              ‹
-            </button>
-            <button
-              disabled={currentPage >= pages.length}
-              onClick={() => setCurrentPage((p) => Math.min(pages.length, p + 1))}
-              className="w-6 h-6 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed text-xs text-white flex items-center justify-center transition-colors"
-            >
-              ›
-            </button>
-          </div>
-        </div>
-
-        {/* Interactive PDF Document Page */}
-        <div className="w-full flex justify-center bg-black/50 rounded-xl p-2 border border-white/[0.08]">
+        {/* Scrollable Viewport with Zoom */}
+        <div className="w-full flex justify-center bg-black/60 rounded-2xl p-4 border border-white/[0.08] overflow-auto max-h-[380px] shadow-inner">
           <div
             ref={containerRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            className="relative max-h-[310px] aspect-[1/1.4] bg-white rounded shadow-xl overflow-hidden cursor-crosshair select-none"
+            onMouseDown={handlePageMouseDown}
+            onMouseMove={handlePageMouseMove}
+            onMouseUp={handlePageMouseUp}
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top center',
+              transition: interactionMode === 'none' ? 'transform 0.15s ease-out' : 'none'
+            }}
+            className={`relative max-h-[340px] aspect-[1/1.4] bg-white rounded-md shadow-2xl overflow-hidden select-none ${
+              tool === 'select' ? 'cursor-default' : 'cursor-crosshair'
+            }`}
           >
             <img
               src={activePageDetail.dataUrl}
@@ -308,47 +515,68 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
               className="w-full h-full object-contain pointer-events-none"
             />
 
-            {/* Render Saved Annotations on this page */}
+            {/* Saved Annotations */}
             {containerRef.current &&
               pageAnnotations.map((ann) => {
                 const rect = containerRef.current!.getBoundingClientRect()
-                const scaleX = rect.width / activePageDetail.width
-                const scaleY = rect.height / activePageDetail.height
+                const containerW = rect.width / zoom
+                const containerH = rect.height / zoom
+                const scaleX = containerW / activePageDetail.width
+                const scaleY = containerH / activePageDetail.height
 
                 const left = ann.x * scaleX
                 const top = ann.y * scaleY
                 const width = (ann.width || 0) * scaleX
                 const height = (ann.height || 0) * scaleY
+                const isSelected = selectedId === ann.id
 
                 if (ann.type === 'text') {
                   return (
                     <div
-                      key={ann.globalIndex}
+                      key={ann.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedId(ann.id)
+                      }}
+                      onMouseDown={(e) => startMove(e, ann)}
                       style={{
                         left,
                         top,
-                        fontSize: (ann.fontSize || 14) * scaleY,
+                        fontSize: (ann.fontSize || 16) * scaleY,
                         color: ann.color || '#000000'
                       }}
-                      className="absolute font-bold whitespace-nowrap leading-none group cursor-pointer"
+                      className={`absolute font-bold whitespace-nowrap leading-none cursor-move p-0.5 rounded transition-all select-none ${
+                        isSelected
+                          ? 'ring-2 ring-indigo-500 bg-indigo-500/10 shadow-lg'
+                          : 'hover:ring-1 hover:ring-indigo-400/50'
+                      }`}
                     >
                       <span>{ann.text}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          removeAnnotation(ann.globalIndex)
-                        }}
-                        className="opacity-0 group-hover:opacity-100 ml-1 text-red-500 font-normal text-xs"
-                      >
-                        ×
-                      </button>
+                      {isSelected && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setAnnotations((prev) => prev.filter((a) => a.id !== ann.id))
+                            setSelectedId(null)
+                          }}
+                          className="absolute -top-3 -right-3 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] flex items-center justify-center shadow hover:bg-red-500 transition-colors cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   )
                 }
 
+                // Rectangle annotations: whiteout, redact, highlight
                 return (
                   <div
-                    key={ann.globalIndex}
+                    key={ann.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedId(ann.id)
+                    }}
+                    onMouseDown={(e) => startMove(e, ann)}
                     style={{
                       left,
                       top,
@@ -361,17 +589,33 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
                           ? '#000000'
                           : 'rgba(250, 204, 21, 0.45)'
                     }}
-                    className="absolute group border border-transparent hover:border-red-400"
+                    className={`absolute cursor-move transition-all ${
+                      isSelected
+                        ? 'ring-2 ring-indigo-500 shadow-xl'
+                        : 'border border-transparent hover:border-indigo-400/50'
+                    }`}
                   >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeAnnotation(ann.globalIndex)
-                      }}
-                      className="opacity-0 group-hover:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] flex items-center justify-center shadow"
-                    >
-                      ×
-                    </button>
+                    {/* Delete badge */}
+                    {isSelected && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setAnnotations((prev) => prev.filter((a) => a.id !== ann.id))
+                          setSelectedId(null)
+                        }}
+                        className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center shadow-lg hover:bg-red-500 transition-colors cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    )}
+
+                    {/* Corner Resize Handle */}
+                    {isSelected && (
+                      <div
+                        onMouseDown={(e) => startResize(e, ann)}
+                        className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-indigo-500 border border-white cursor-se-resize shadow-md"
+                      />
+                    )}
                   </div>
                 )
               })}
@@ -391,18 +635,18 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
                       ? '#000000'
                       : 'rgba(250, 204, 21, 0.45)'
                 }}
-                className="absolute border border-indigo-400 pointer-events-none"
+                className="absolute border-2 border-indigo-500 pointer-events-none"
               />
             )}
           </div>
         </div>
       </div>
 
-      {/* Footer Actions */}
-      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between mt-3">
+      {/* Upgraded Modern Footer Action Bar */}
+      <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between mt-3">
         <button
           onClick={handleCancel}
-          className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          className="px-5 py-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer active:scale-95 shadow-sm"
         >
           Cancel
         </button>
@@ -410,15 +654,17 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
         <button
           onClick={handleSave}
           disabled={annotations.length === 0 || isSubmitting}
-          className={`px-5 py-2 rounded-xl text-xs font-semibold shadow-lg transition-all flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-lg active:scale-95 ${
             annotations.length > 0 && !isSubmitting
-              ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 cursor-pointer'
-              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+              ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 shadow-indigo-600/30 cursor-pointer'
+              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none'
           }`}
         >
-          {isSubmitting
-            ? 'Saving PDF…'
-            : `Save Changes (${annotations.length} edit${annotations.length === 1 ? '' : 's'})`}
+          {isSubmitting ? (
+            'Saving PDF…'
+          ) : (
+            `Apply & Save (${annotations.length} edit${annotations.length === 1 ? '' : 's'})`
+          )}
         </button>
       </div>
     </div>

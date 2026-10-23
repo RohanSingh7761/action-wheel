@@ -62,3 +62,24 @@ export async function savePdfImages(
     sizeInfo: exportToFolder ? `${pageCount} images saved in folder` : `${pageCount} images exported`
   }
 }
+
+export async function saveBatchPdfImages(
+  batch: Record<string, SavePdfImageItem[]>
+): Promise<{ outputPath: string; sizeInfo?: string }> {
+  let lastOut = ''
+  let totalSaved = 0
+  const fileCount = Object.keys(batch).length
+
+  for (const [filePath, images] of Object.entries(batch)) {
+    if (images && images.length > 0) {
+      const res = await savePdfImages(filePath, images)
+      lastOut = res.outputPath
+      totalSaved += images.length
+    }
+  }
+
+  return {
+    outputPath: lastOut,
+    sizeInfo: `${totalSaved} images saved across ${fileCount} PDFs`
+  }
+}

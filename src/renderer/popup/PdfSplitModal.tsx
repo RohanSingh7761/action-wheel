@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { loadAndRenderPdf, type RenderedPage as PageDetail } from './pdf-renderer'
+
+interface PdfSplitModalProps {
+  filePath: string
+}
 
 export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.ReactElement {
   const [loading, setLoading] = useState(true)
   const [totalPages, setTotalPages] = useState(0)
   const [pages, setPages] = useState<PageDetail[]>([])
   const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set())
-  const [rangeInput, setRangeInput] = useState('')
+
+  // Visual Range Picker inputs
+  const [rangeFrom, setRangeFrom] = useState<number>(1)
+  const [rangeTo, setRangeTo] = useState<number>(1)
+
+  // Last clicked page for Shift+Click multi-selection
+  const [lastClickedPage, setLastClickedPage] = useState<number | null>(null)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fileName = filePath.split('\\').pop()?.split('/').pop() || 'Document'
@@ -23,6 +33,7 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
         if (result && isMounted) {
           setTotalPages(result.pageCount)
           setPages(result.pages || [])
+          setRangeTo(result.pageCount)
           // Default: select all pages
           const all = new Set<number>()
           for (let i = 1; i <= result.pageCount; i++) all.add(i)
@@ -40,18 +51,30 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
     }
   }, [filePath])
 
-  const togglePage = (pageNumber: number) => {
-    setSelectedPages((prev) => {
-      const next = new Set(prev)
-      if (next.has(pageNumber)) {
-        next.delete(pageNumber)
-      } else {
-        next.add(pageNumber)
-      }
-      return next
-    })
+  const togglePage = (pageNumber: number, isShiftKey = false) => {
+    if (isShiftKey && lastClickedPage !== null) {
+      const min = Math.min(lastClickedPage, pageNumber)
+      const max = Math.max(lastClickedPage, pageNumber)
+      setSelectedPages((prev) => {
+        const next = new Set(prev)
+        for (let p = min; p <= max; p++) next.add(p)
+        return next
+      })
+    } else {
+      setSelectedPages((prev) => {
+        const next = new Set(prev)
+        if (next.has(pageNumber)) {
+          next.delete(pageNumber)
+        } else {
+          next.add(pageNumber)
+        }
+        return next
+      })
+      setLastClickedPage(pageNumber)
+    }
   }
 
+  // Range Presets
   const selectAll = () => {
     const all = new Set<number>()
     for (let i = 1; i <= totalPages; i++) all.add(i)
@@ -62,33 +85,44 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
     setSelectedPages(new Set())
   }
 
-  const handleRangeChange = (text: string) => {
-    setRangeInput(text)
-    // Parse range e.g. "1-3, 5, 8-10"
-    const newSelected = new Set<number>()
-    const parts = text.split(',')
-    for (const part of parts) {
-      const trimmed = part.trim()
-      if (!trimmed) continue
-      if (trimmed.includes('-')) {
-        const [startStr, endStr] = trimmed.split('-')
-        const start = parseInt(startStr, 10)
-        const end = parseInt(endStr, 10)
-        if (!isNaN(start) && !isNaN(end)) {
-          const min = Math.max(1, Math.min(start, end))
-          const max = Math.min(totalPages, Math.max(start, end))
-          for (let p = min; p <= max; p++) newSelected.add(p)
-        }
-      } else {
-        const p = parseInt(trimmed, 10)
-        if (!isNaN(p) && p >= 1 && p <= totalPages) {
-          newSelected.add(p)
-        }
-      }
-    }
-    if (newSelected.size > 0) {
-      setSelectedPages(newSelected)
-    }
+  const selectOdd = () => {
+    const s = new Set<number>()
+    for (let i = 1; i <= totalPages; i += 2) s.add(i)
+    setSelectedPages(s)
+  }
+
+  const selectEven = () => {
+    const s = new Set<number>()
+    for (let i = 2; i <= totalPages; i += 2) s.add(i)
+    setSelectedPages(s)
+  }
+
+  const selectFirstHalf = () => {
+    const mid = Math.ceil(totalPages / 2)
+    const s = new Set<number>()
+    for (let i = 1; i <= mid; i++) s.add(i)
+    setSelectedPages(s)
+  }
+
+  const selectSecondHalf = () => {
+    const mid = Math.ceil(totalPages / 2) + 1
+    const s = new Set<number>()
+    for (let i = mid; i <= totalPages; i++) s.add(i)
+    setSelectedPages(s)
+  }
+
+  // Apply Range Button
+  const applyRange = () => {
+    const from = Math.max(1, Math.min(rangeFrom, totalPages))
+    const to = Math.max(1, Math.min(rangeTo, totalPages))
+    const min = Math.min(from, to)
+    const max = Math.max(from, to)
+
+    setSelectedPages((prev) => {
+      const next = new Set(prev)
+      for (let p = min; p <= max; p++) next.add(p)
+      return next
+    })
   }
 
   const handleExtract = async () => {
@@ -113,29 +147,29 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3">
-        <div className="w-7 h-7 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 min-h-[400px]">
+        <div className="w-8 h-8 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
         <span className="text-xs text-zinc-400 font-medium tracking-wide">
-          Rendering PDF pages…
+          Rendering PDF thumbnails…
         </span>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 flex flex-col justify-between select-none h-full min-h-[440px]">
+    <div className="flex-1 flex flex-col justify-between select-none h-full min-h-[500px]">
       <div>
         {/* Output File Name */}
         <div className="mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-[11px] font-semibold text-zinc-300">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-zinc-300">
               Output PDF Name
             </label>
-            <span className="text-[10px] text-zinc-400">
+            <span className="text-[11px] text-zinc-400 font-mono">
               {selectedPages.size} of {totalPages} pages selected
             </span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] focus-within:border-indigo-500/80 transition-all">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/40 border border-white/[0.08] focus-within:border-indigo-500/80 transition-all">
             <input
               type="text"
               value={outputName}
@@ -147,86 +181,108 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
           </div>
         </div>
 
-        {/* Quick Selection Toolbar */}
-        <div className="flex items-center justify-between gap-2 mb-3 bg-white/[0.02] p-2 rounded-xl border border-white/[0.05]">
+        {/* Visual Range Picker & Preset Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-black/40 p-2.5 rounded-2xl border border-white/[0.06]">
+          {/* Range Picker */}
           <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400 font-medium">Range:</span>
+            <span className="text-[11px] text-zinc-500">From</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={rangeFrom}
+              onChange={(e) => setRangeFrom(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-14 px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.1] text-xs text-white text-center font-mono focus:outline-none focus:border-indigo-500"
+            />
+            <span className="text-[11px] text-zinc-500">to</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={rangeTo}
+              onChange={(e) => setRangeTo(Math.max(1, parseInt(e.target.value) || totalPages))}
+              className="w-14 px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.1] text-xs text-white text-center font-mono focus:outline-none focus:border-indigo-500"
+            />
             <button
-              onClick={selectAll}
-              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 transition-colors"
+              onClick={applyRange}
+              className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer shadow-sm shadow-indigo-600/30"
             >
-              Select All
-            </button>
-            <button
-              onClick={clearAll}
-              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 transition-colors"
-            >
-              Clear
+              Select Range
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-400">Range:</span>
-            <input
-              type="text"
-              placeholder="e.g. 1-3, 5"
-              value={rangeInput}
-              onChange={(e) => handleRangeChange(e.target.value)}
-              className="w-28 px-2 py-0.5 rounded-lg bg-black/40 border border-white/[0.08] text-[10px] text-white focus:outline-none focus:border-indigo-500/80 font-mono"
-            />
+          {/* Quick Preset Chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[
+              { label: 'All', fn: selectAll },
+              { label: 'Odd', fn: selectOdd },
+              { label: 'Even', fn: selectEven },
+              { label: '1st Half', fn: selectFirstHalf },
+              { label: '2nd Half', fn: selectSecondHalf },
+              { label: 'Clear', fn: clearAll }
+            ].map((p) => (
+              <button
+                key={p.label}
+                onClick={p.fn}
+                className="px-2.5 py-1 rounded-lg text-[10.5px] font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white transition-colors cursor-pointer"
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Pages Thumbnail Grid */}
-        <div className="max-h-[300px] overflow-y-auto pr-1 grid grid-cols-4 gap-3">
+        {/* Pages Thumbnail Grid - with comfortable padding to prevent boundary clipping */}
+        <div className="max-h-[320px] overflow-y-auto p-2 bg-black/30 rounded-2xl border border-white/[0.06] grid grid-cols-4 sm:grid-cols-5 gap-3.5 shadow-inner">
           {pages.map((p) => {
             const isSelected = selectedPages.has(p.pageNumber)
             return (
-              <motion.div
+              <div
                 key={p.pageNumber}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => togglePage(p.pageNumber)}
-                className={`relative group rounded-xl overflow-hidden cursor-pointer border transition-all flex flex-col items-center bg-black/40 p-1.5 ${
+                onClick={(e) => togglePage(p.pageNumber, e.shiftKey)}
+                className={`relative rounded-xl overflow-hidden cursor-pointer transition-all flex flex-col items-center bg-zinc-950 p-2 border ${
                   isSelected
-                    ? 'border-indigo-500 ring-2 ring-indigo-500/30'
-                    : 'border-white/[0.08] opacity-60 hover:opacity-100 hover:border-white/[0.2]'
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/20'
+                    : 'border-white/[0.08] opacity-65 hover:opacity-100 hover:border-white/30'
                 }`}
+                title={`Click to toggle page ${p.pageNumber} (Shift+Click for multi-range)`}
               >
                 {/* Page Thumbnail */}
-                <div className="w-full aspect-[1/1.3] bg-zinc-900 rounded-lg overflow-hidden flex items-center justify-center">
+                <div className="w-full aspect-[1/1.3] bg-zinc-900 rounded-lg overflow-hidden flex items-center justify-center shadow">
                   <img
                     src={p.dataUrl}
                     alt={`Page ${p.pageNumber}`}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain pointer-events-none"
                   />
                 </div>
 
                 {/* Badge Overlay */}
-                <div className="w-full flex items-center justify-between mt-1 px-1">
-                  <span className="text-[10px] font-mono text-zinc-300 font-medium">
+                <div className="w-full flex items-center justify-between mt-1.5 px-0.5">
+                  <span className="text-[10px] font-mono text-zinc-300 font-semibold">
                     Page {p.pageNumber}
                   </span>
                   <div
                     className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] transition-colors ${
                       isSelected
-                        ? 'bg-indigo-500 text-white font-bold'
+                        ? 'bg-indigo-500 text-white font-bold shadow'
                         : 'border border-white/20 text-transparent'
                     }`}
                   >
                     ✓
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )
           })}
         </div>
       </div>
 
-      {/* Footer Actions */}
-      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between mt-3">
+      {/* Upgraded Footer */}
+      <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between mt-3">
         <button
           onClick={handleCancel}
-          className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          className="px-5 py-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer active:scale-95 shadow-sm"
         >
           Cancel
         </button>
@@ -234,10 +290,10 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
         <button
           onClick={handleExtract}
           disabled={selectedPages.size === 0 || isSubmitting}
-          className={`px-5 py-2 rounded-xl text-xs font-semibold shadow-lg transition-all flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-lg active:scale-95 ${
             selectedPages.size > 0 && !isSubmitting
-              ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 cursor-pointer'
-              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+              ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 shadow-indigo-600/30 cursor-pointer'
+              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none'
           }`}
         >
           {isSubmitting ? (

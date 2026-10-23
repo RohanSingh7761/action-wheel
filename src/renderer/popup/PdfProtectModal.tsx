@@ -186,10 +186,10 @@ export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModa
       </div>
 
       {/* Footer Actions */}
-      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between mt-3">
+      <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between mt-3">
         <button
           onClick={handleCancel}
-          className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+          className="px-5 py-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer active:scale-95 shadow-sm"
         >
           Cancel
         </button>
@@ -197,12 +197,12 @@ export default function PdfProtectModal({ filePath, isMultiple }: PdfProtectModa
         <button
           onClick={handleSubmit}
           disabled={!password || isSubmitting}
-          className={`px-5 py-2 rounded-xl text-xs font-semibold shadow-lg transition-all flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-lg active:scale-95 ${
             password && !isSubmitting
               ? isEncrypted
-                ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30 cursor-pointer'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 cursor-pointer'
-              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-500 shadow-amber-600/30 cursor-pointer'
+                : 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 shadow-indigo-600/30 cursor-pointer'
+              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none'
           }`}
         >
           {isSubmitting

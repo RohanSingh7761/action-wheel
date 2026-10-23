@@ -6,14 +6,14 @@ let popupWin: BrowserWindow | null = null
 
 export function createPopupWindow(): BrowserWindow {
   popupWin = new BrowserWindow({
-    width: 720,
-    height: 600,
+    width: 880,
+    height: 680,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     resizable: true,
-    minWidth: 540,
-    minHeight: 480,
+    minWidth: 700,
+    minHeight: 560,
     movable: true,
     skipTaskbar: true,
     show: false,
