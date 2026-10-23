@@ -21,7 +21,7 @@ import { compressImage } from './compress'
 import { signPdf } from './pdf/pdf-sign'
 import { splitPdf } from './pdf/pdf-split'
 import { mergePdfs } from './pdf/pdf-merge'
-import { pdfToImages } from './pdf/pdf-to-images'
+import { savePdfImages } from './pdf/pdf-to-images'
 import { protectOrUnlockPdf } from './pdf/pdf-protect'
 import { compressPdf } from './pdf/pdf-compress'
 import { editPdf } from './pdf/pdf-edit'
@@ -89,7 +89,8 @@ export async function processAction(
     }
 
     case 'pdf-to-images': {
-      const result = await pdfToImages(filePath, params as PdfToImagesParams | undefined)
+      if (!params || !('images' in params)) throw new Error('pdf-to-images requires images')
+      const result = await savePdfImages(filePath, (params as PdfToImagesParams).images)
       return result
     }
 

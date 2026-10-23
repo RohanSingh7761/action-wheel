@@ -10,6 +10,7 @@ import PdfSignModal from './PdfSignModal'
 import PdfMergeModal from './PdfMergeModal'
 import PdfProtectModal from './PdfProtectModal'
 import PdfEditModal from './PdfEditModal'
+import PdfToImagesModal from './PdfToImagesModal'
 import {
   ConvertIcon,
   CropIcon,
@@ -107,6 +108,11 @@ export default function App(): React.ReactElement {
           title: initData.isMultiple ? 'Protect All PDFs' : 'Protect / Unlock PDF',
           icon: <LockIcon size={15} strokeWidth={1.8} />
         }
+      case 'pdf-to-images':
+        return {
+          title: 'Convert PDF to Images',
+          icon: <ConvertIcon size={15} strokeWidth={1.8} />
+        }
       default:
         return { title: 'Action Wheel Settings', icon: null }
     }
@@ -181,6 +187,9 @@ export default function App(): React.ReactElement {
           )}
           {initData.action === 'pdf-protect' && (
             <PdfProtectModal filePath={initData.filePath} isMultiple={initData.isMultiple} />
+          )}
+          {initData.action === 'pdf-to-images' && (
+            <PdfToImagesModal filePath={initData.filePath} />
           )}
         </div>
       </div>

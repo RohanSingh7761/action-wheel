@@ -1,15 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { loadAndRenderPdf, type RenderedPage as PageDetail } from './pdf-renderer'
 
 interface PdfSignModalProps {
   filePath: string
-}
-
-interface PageDetail {
-  pageNumber: number
-  width: number
-  height: number
-  dataUrl: string
 }
 
 const SIGNATURE_FONTS = [
@@ -50,9 +44,7 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
     let isMounted = true
     const loadDetails = async () => {
       try {
-        const api = (window as any).popupAPI
-        if (!api?.loadPdfDetails) return
-        const result = await api.loadPdfDetails(filePath)
+        const result = await loadAndRenderPdf(filePath)
         if (result && isMounted && result.pages?.length > 0) {
           setPages(result.pages)
           setCurrentPage(1)

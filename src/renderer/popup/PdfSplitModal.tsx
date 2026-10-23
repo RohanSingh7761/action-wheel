@@ -1,16 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-
-interface PdfSplitModalProps {
-  filePath: string
-}
-
-interface PageDetail {
-  pageNumber: number
-  width: number
-  height: number
-  dataUrl: string
-}
+import { loadAndRenderPdf, type RenderedPage as PageDetail } from './pdf-renderer'
 
 export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.ReactElement {
   const [loading, setLoading] = useState(true)
@@ -29,9 +19,7 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
     let isMounted = true
     const loadDetails = async () => {
       try {
-        const api = (window as any).popupAPI
-        if (!api?.loadPdfDetails) return
-        const result = await api.loadPdfDetails(filePath)
+        const result = await loadAndRenderPdf(filePath)
         if (result && isMounted) {
           setTotalPages(result.pageCount)
           setPages(result.pages || [])

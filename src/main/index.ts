@@ -53,7 +53,7 @@ import {
 } from './windows/popup'
 
 import { processAction, processBatchAction } from './processor/index'
-import { loadPdfDetails } from './processor/pdf/pdf-preview'
+import { loadPdfBytes } from './processor/pdf/pdf-preview'
 import { checkIsPdfEncrypted } from './processor/pdf/pdf-protect'
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -389,13 +389,13 @@ function registerIpcHandlers(): void {
     }
   })
 
-  // Load PDF details (pages count, dimensions, page render preview images)
-  ipcMain.handle(IPC.PDF_LOAD_DETAILS, async (_e, filePath: string) => {
+  // Load PDF file bytes for renderer PDF.js rendering
+  ipcMain.handle(IPC.PDF_LOAD_BYTES, async (_e, filePath: string) => {
     try {
-      const details = await loadPdfDetails(filePath)
-      return details
+      const res = await loadPdfBytes(filePath)
+      return res
     } catch (err) {
-      console.error('[pdf-preview] Error loading PDF details:', err)
+      console.error('[pdf-bytes] Error loading PDF bytes:', err)
       return null
     }
   })

@@ -99,7 +99,7 @@ export const PDF_ACTIONS_SINGLE: ActionMeta[] = [
     icon: 'convert',
     color: '#13151b',
     accentColor: '#ffffff',
-    needsParams: false
+    needsParams: true
   },
   {
     id: 'pdf-compress',
@@ -142,7 +142,7 @@ export const PDF_ACTIONS_MULTIPLE: ActionMeta[] = [
     icon: 'convert',
     color: '#13151b',
     accentColor: '#ffffff',
-    needsParams: false
+    needsParams: true
   },
   {
     id: 'pdf-protect',
@@ -175,7 +175,7 @@ export const IPC = {
   POPUP_CONFIRM: 'popup:confirm',           // invoke → void
   POPUP_CANCEL: 'popup:cancel',             // notify
   IMAGE_LOAD_PREVIEW: 'image:load-preview', // invoke → { dataUrl, width, height }
-  PDF_LOAD_DETAILS: 'pdf:load-details'      // invoke → { pageCount, pages: Array<{ pageNumber, width, height, dataUrl }> }
+  PDF_LOAD_BYTES: 'pdf:load-bytes'          // invoke → { isEncrypted: boolean, buffer?: Uint8Array }
 } as const
 
 // ─── Payload Types ────────────────────────────────────────────────────────────
@@ -290,7 +290,7 @@ export interface PdfMergeParams {
 }
 
 export interface PdfToImagesParams {
-  format?: 'png' | 'jpg'
+  images: Array<{ pageNumber: number; dataUrl: string }>
 }
 
 export type PopupParams =

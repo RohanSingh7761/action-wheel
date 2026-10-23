@@ -1,15 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { PdfEditAnnotation } from '../../shared/ipc-types'
+import { loadAndRenderPdf, type RenderedPage as PageDetail } from './pdf-renderer'
 
 interface PdfEditModalProps {
   filePath: string
-}
-
-interface PageDetail {
-  pageNumber: number
-  width: number
-  height: number
-  dataUrl: string
 }
 
 type ToolMode = 'text' | 'whiteout' | 'redact' | 'highlight'
@@ -42,9 +36,7 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
     let isMounted = true
     const loadDetails = async () => {
       try {
-        const api = (window as any).popupAPI
-        if (!api?.loadPdfDetails) return
-        const result = await api.loadPdfDetails(filePath)
+        const result = await loadAndRenderPdf(filePath)
         if (result && isMounted && result.pages?.length > 0) {
           setPages(result.pages)
           setCurrentPage(1)
