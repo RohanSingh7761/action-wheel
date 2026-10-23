@@ -1,6 +1,6 @@
 {
   "name": "action-wheel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Global Windows image action wheel",
   "main": "out/main/index.js",
   "scripts": {
@@ -41,6 +41,11 @@
     "appId": "com.rohansingh.actionwheel",
     "productName": "Action Wheel",
     "copyright": "Copyright © 2026 Rohan Singh",
+    "publish": {
+      "provider": "github",
+      "owner": "RohanSingh7761",
+      "repo": "action-wheel"
+    },
     "directories": {
       "output": "dist"
     },

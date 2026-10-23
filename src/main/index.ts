@@ -10,7 +10,8 @@ import {
   clipboard,
   screen,
   shell,
-  session
+  session,
+  Notification
 } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
@@ -19,6 +20,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import sharp from 'sharp'
 import { spawn, spawnSync, type ChildProcess } from 'child_process'
 import net from 'net'
+import { checkForUpdates } from './updater'
 
 import {
   IPC,
@@ -114,6 +116,35 @@ function getTrayIcon(): nativeImage {
   return nativeImage.createFromBuffer(buffer, { width: size, height: size })
 }
 
+function getAppIconPath(): string | undefined {
+  const candidates = [
+    join(process.resourcesPath, 'resources/icon.png'),
+    join(process.resourcesPath, 'icon.png'),
+    join(__dirname, '../../resources/icon.png'),
+    join(app.getAppPath(), 'resources/icon.png')
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+  return undefined
+}
+
+function showStartupNotification(): void {
+  try {
+    if (Notification.isSupported()) {
+      const notif = new Notification({
+        title: 'Action Wheel is Ready',
+        body: 'Running in your system tray. Drag any image and press Tab to activate.',
+        icon: getAppIconPath(),
+        silent: false
+      })
+      notif.show()
+    }
+  } catch (err) {
+    console.warn('[notification] Could not show startup notification:', err)
+  }
+}
+
 function getDemoImagePath(): string {
   const candidates = [
     join(process.resourcesPath, 'resources/sample.jpg'),
@@ -134,13 +165,15 @@ function createTraySafe(): void {
     const icon = getTrayIcon()
     tray = new Tray(icon)
     const menu = Menu.buildFromTemplate([
-      { label: '🌀 Action Wheel', enabled: false },
-      { label: 'Drag photo + press Tab', enabled: false },
+      { label: 'Action Wheel', enabled: false },
+      { type: 'separator' },
+      { label: 'Check for Updates...', click: () => { checkForUpdates(true) } },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() }
     ])
-    tray.setToolTip('Action Wheel — Drag photo + press Tab')
+    tray.setToolTip('Action Wheel')
     tray.setContextMenu(menu)
+    tray.on('click', () => tray?.popUpContextMenu())
   } catch (err) {
     console.warn('[tray] System tray creation error:', err)
   }
@@ -506,9 +539,25 @@ app.on('second-instance', () => {
 })
 
 app.whenReady().then(async () => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.rohansingh.actionwheel')
+  }
+
   // Block any browser permission dialogs (geolocation, camera, etc.)
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false))
   session.defaultSession.setPermissionCheckHandler(() => false)
+
+  // Automatically launch on Windows startup in packaged production builds
+  if (app.isPackaged) {
+    try {
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        openAsHidden: true
+      })
+    } catch (err) {
+      console.warn('[startup] Failed to enable launch at startup:', err)
+    }
+  }
 
   createTraySafe()
 
@@ -521,6 +570,9 @@ app.whenReady().then(async () => {
   registerIpcHandlers()
   const port = await startHookServer()
   startHookDaemon(port)
+
+  // Notify user that Action Wheel is active and ready
+  showStartupNotification()
 })
 
 app.on('will-quit', () => {
