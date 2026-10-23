@@ -10,6 +10,7 @@ interface WheelSegmentProps {
   labelPos: { x: number; y: number }
   isHovered: boolean
   isProcessing: boolean
+  isMultiple?: boolean
   onHover: () => void
   onLeave: () => void
 }
@@ -73,12 +74,14 @@ export default function WheelSegment({
   labelPos,
   isHovered,
   isProcessing,
+  isMultiple,
   onHover,
   onLeave
 }: WheelSegmentProps): React.ReactElement {
   // Production-grade restrained surface
   const fillColor = isHovered ? 'rgba(32, 36, 45, 0.96)' : 'rgba(18, 20, 26, 0.92)'
   const strokeColor = isHovered ? 'rgba(255, 255, 255, 0.32)' : 'rgba(255, 255, 255, 0.08)'
+  const displayLabel = isMultiple && action.multipleLabel ? action.multipleLabel : action.label
 
   return (
     <g style={{ cursor: 'pointer' }}>
@@ -134,7 +137,7 @@ export default function WheelSegment({
         fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', sans-serif"
         style={{ pointerEvents: 'none', userSelect: 'none', transition: 'fill 0.12s ease' }}
       >
-        {action.label}
+        {displayLabel}
       </text>
 
       {/* Processing Spinner Arc */}

@@ -1,7 +1,7 @@
 import { statSync } from 'fs'
 import path from 'path'
-import type { ActionId, PopupParams, ConvertFormatParams, CropParams, CompressParams } from '../../shared/ipc-types'
-import { convertToPdf } from './convert-pdf'
+import type { ActionId, PopupParams, ConvertFormatParams, CropParams, CompressParams, PdfReorderParams } from '../../shared/ipc-types'
+import { convertToPdf, convertMultipleToPdf } from './convert-pdf'
 import { convertFormat } from './convert-format'
 import { cropImage } from './crop'
 import { compressImage } from './compress'
@@ -19,6 +19,11 @@ export async function processAction(
 ): Promise<ProcessResult> {
   switch (action) {
     case 'convert-pdf': {
+      if (params && 'orderedPaths' in params) {
+        const reorder = params as PdfReorderParams
+        const out = await convertMultipleToPdf(reorder.orderedPaths, reorder.outputName)
+        return { outputPath: out }
+      }
       const out = await convertToPdf(filePath)
       return { outputPath: out }
     }
@@ -41,7 +46,6 @@ export async function processAction(
       return result
     }
 
-
     case 'copy': {
       // Handled in main/index.ts via clipboard API
       return { outputPath: filePath }
@@ -49,6 +53,34 @@ export async function processAction(
 
     default:
       throw new Error(`Unknown action: ${action}`)
+  }
+}
+
+export async function processBatchAction(
+  action: ActionId,
+  filePaths: string[],
+  params?: PopupParams
+): Promise<ProcessResult> {
+  if (!filePaths || filePaths.length === 0) {
+    throw new Error('No files provided')
+  }
+
+  if (action === 'convert-pdf') {
+    const paths = params && 'orderedPaths' in params ? (params as PdfReorderParams).orderedPaths : filePaths
+    const customName = params && 'outputName' in params ? (params as PdfReorderParams).outputName : undefined
+    const out = await convertMultipleToPdf(paths, customName)
+    return { outputPath: out }
+  }
+
+  let lastOut = ''
+  for (const file of filePaths) {
+    const res = await processAction(action, file, params)
+    lastOut = res.outputPath
+  }
+
+  return {
+    outputPath: lastOut,
+    sizeInfo: `${filePaths.length} images processed`
   }
 }
 

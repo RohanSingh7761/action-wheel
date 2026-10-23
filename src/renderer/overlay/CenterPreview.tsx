@@ -6,6 +6,8 @@ import { ApertureIcon, CloseIcon } from '../shared/Icons'
 interface CenterPreviewProps {
   thumbnail?: string
   filePath: string
+  filePaths?: string[]
+  isMultiple?: boolean
   isProcessing: boolean
   hoveredAction: ActionMeta | null
   onCancel?: () => void
@@ -14,12 +16,16 @@ interface CenterPreviewProps {
 export default function CenterPreview({
   thumbnail,
   filePath,
+  filePaths,
+  isMultiple,
   isProcessing,
   hoveredAction,
   onCancel
 }: CenterPreviewProps): React.ReactElement {
+  const count = filePaths?.length || 1
   const fileName = filePath.split('\\').pop()?.split('/').pop() ?? 'Image'
-  const truncName = fileName.length > 14 ? fileName.slice(0, 12) + '…' : fileName
+  const truncName = isMultiple ? `${count} Images` : fileName.length > 14 ? fileName.slice(0, 12) + '…' : fileName
+  const subLabel = isMultiple ? 'All Selected' : 'Release to execute'
 
   return (
     <div
@@ -70,10 +76,10 @@ export default function CenterPreview({
         >
           <div className="w-1.5 h-1.5 rounded-full bg-white mb-1.5 shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
           <span className="font-semibold text-white text-xs tracking-tight leading-none">
-            {hoveredAction.label}
+            {isMultiple && hoveredAction.multipleLabel ? hoveredAction.multipleLabel : hoveredAction.label}
           </span>
           <span className="text-[9.5px] text-zinc-400 mt-1 tracking-normal font-normal">
-            Release to execute
+            {subLabel}
           </span>
         </motion.div>
       )}

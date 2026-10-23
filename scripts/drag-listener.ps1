@@ -101,14 +101,14 @@ public class DragListener {
                         GetCursorPos(out pt);
                         Console.WriteLine("[listener] Drag + Tab detected at (" + pt.X + ", " + pt.Y + ")");
 
-                        string photoPath = GetDraggedPhotoPath(pt);
+                        List<string> photoPaths = GetDraggedPhotoPaths(pt);
 
-                        if (!string.IsNullOrEmpty(photoPath) && File.Exists(photoPath)) {
-                            Console.WriteLine("[listener] Triggering wheel for photo: " + photoPath);
-                            SendTrigger(photoPath, pt.X, pt.Y);
+                        if (photoPaths != null && photoPaths.Count > 0) {
+                            Console.WriteLine("[listener] Triggering wheel for " + photoPaths.Count + " photo(s): " + photoPaths[0]);
+                            SendTrigger(photoPaths, pt.X, pt.Y);
                             _isWheelActive = true;
                         } else {
-                            Console.WriteLine("[listener] Drag + Tab ignored: item is not a photo (video/folder/document/none).");
+                            Console.WriteLine("[listener] Drag + Tab ignored: selection does not consist exclusively of images.");
                         }
 
                         // Wait until Tab key is released so we don't immediately re-trigger
@@ -166,11 +166,18 @@ public class DragListener {
         }
     }
 
-    private static void SendTrigger(string filePath, int x, int y) {
+    private static void SendTrigger(List<string> filePaths, int x, int y) {
         try {
-            if (_ws != null && _ws.State == WebSocketState.Open) {
-                string cleanPath = filePath.Replace("\\", "\\\\").Replace("\"", "\\\"");
-                string json = string.Format("{{\"type\":\"DRAG_TAB\",\"filePath\":\"{0}\",\"cursorX\":{1},\"cursorY\":{2}}}", cleanPath, x, y);
+            if (_ws != null && _ws.State == WebSocketState.Open && filePaths != null && filePaths.Count > 0) {
+                string primaryPath = filePaths[0].Replace("\\", "\\\\").Replace("\"", "\\\"");
+                StringBuilder sb = new StringBuilder();
+                sb.Append("[");
+                for (int i = 0; i < filePaths.Count; i++) {
+                    if (i > 0) sb.Append(",");
+                    sb.Append("\"").Append(filePaths[i].Replace("\\", "\\\\").Replace("\"", "\\\"")).Append("\"");
+                }
+                sb.Append("]");
+                string json = string.Format("{{\"type\":\"DRAG_TAB\",\"filePath\":\"{0}\",\"filePaths\":{1},\"cursorX\":{2},\"cursorY\":{3}}}", primaryPath, sb.ToString(), x, y);
                 byte[] bytes = Encoding.UTF8.GetBytes(json);
                 _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None).Wait();
             }
@@ -198,7 +205,7 @@ public class DragListener {
         return cls == "Progman" || cls == "WorkerW";
     }
 
-    private static string GetDraggedPhotoPath(POINT pt) {
+    private static List<string> GetDraggedPhotoPaths(POINT pt) {
         try {
             Type shellType = Type.GetTypeFromProgID("Shell.Application");
             if (shellType == null) return null;
@@ -213,9 +220,7 @@ public class DragListener {
                 try {
                     long wHwnd = (long)w.HWND;
                     if (wHwnd == (long)fgHwnd || wHwnd == (long)ptRoot) {
-                        // Drag is in this Explorer window!
-                        // Inspect ONLY this window — DO NOT fall back to desktop or other windows!
-                        return ExtractPhotoFromDoc(w.Document);
+                        return ExtractPhotosFromDoc(w.Document);
                     }
                 } catch { }
             }
@@ -229,50 +234,38 @@ public class DragListener {
                     object disp = windows.FindWindowSW(Type.Missing, Type.Missing, SWC_DESKTOP, ref hwnd, SWFO_NEEDDISPATCH);
                     if (disp != null) {
                         dynamic desktopWin = disp;
-                        // Inspect ONLY Desktop — DO NOT fall back to other windows!
-                        return ExtractPhotoFromDoc(desktopWin.Document);
+                        return ExtractPhotosFromDoc(desktopWin.Document);
                     }
                 } catch { }
             }
         } catch { }
 
-        // Neither Explorer nor Desktop was the drag source -> return null!
         return null;
     }
 
-    private static string ExtractPhotoFromDoc(dynamic doc) {
+    private static List<string> ExtractPhotosFromDoc(dynamic doc) {
         if (doc == null) return null;
 
-        // Check selected items (the items actively being dragged)
+        // Check selected items (all items actively being dragged)
         try {
             var selected = doc.SelectedItems();
-            if (selected != null) {
-                int count = selected.Count;
-                // If multiple objects are selected, DO NOT activate the wheel
-                if (count > 1) {
-                    Console.WriteLine("[listener] Multiple items selected (" + count + "), ignoring.");
-                    return null;
-                }
-                if (count == 1) {
-                    foreach (var item in selected) {
-                        string path = (string)item.Path;
-                        if (!string.IsNullOrEmpty(path)) {
-                            string ext = Path.GetExtension(path);
-                            // If it's a video, explicitly reject!
-                            if (_videoExts.Contains(ext)) {
-                                Console.WriteLine("[listener] Item is a video (" + ext + "), rejecting: " + path);
-                                return null;
-                            }
-                            // If it's a photo, accept!
-                            if (_photoExts.Contains(ext) && File.Exists(path)) {
-                                return path;
-                            }
-                        }
+            if (selected != null && selected.Count > 0) {
+                List<string> list = new List<string>();
+                foreach (var item in selected) {
+                    string path = (string)item.Path;
+                    if (string.IsNullOrEmpty(path)) return null;
+                    string ext = Path.GetExtension(path);
+                    if (_videoExts.Contains(ext)) {
+                        Console.WriteLine("[listener] Item is a video (" + ext + "), rejecting selection: " + path);
+                        return null;
                     }
-                    // Selected single item was not a photo (e.g. folder, doc, pdf, zip)
-                    return null;
+                    if (!_photoExts.Contains(ext) || !File.Exists(path)) {
+                        Console.WriteLine("[listener] Item is not an image (" + ext + "), rejecting selection: " + path);
+                        return null;
+                    }
+                    list.Add(path);
                 }
-                // If count == 0 (e.g. lassoing empty space)
+                if (list.Count > 0) return list;
                 return null;
             }
         } catch { }
@@ -284,12 +277,8 @@ public class DragListener {
                 string path = (string)focused.Path;
                 if (!string.IsNullOrEmpty(path)) {
                     string ext = Path.GetExtension(path);
-                    if (_videoExts.Contains(ext)) {
-                        Console.WriteLine("[listener] Item is a video (" + ext + "), rejecting: " + path);
-                        return null;
-                    }
-                    if (_photoExts.Contains(ext) && File.Exists(path)) {
-                        return path;
+                    if (!_videoExts.Contains(ext) && _photoExts.Contains(ext) && File.Exists(path)) {
+                        return new List<string> { path };
                     }
                 }
             }

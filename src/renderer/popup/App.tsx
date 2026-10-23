@@ -4,7 +4,8 @@ import type { ActionId, PopupInitPayload } from '../../shared/ipc-types'
 import FormatPicker from './FormatPicker'
 import CropEditor from './CropEditor'
 import CompressSlider from './CompressSlider'
-import { ConvertIcon, CropIcon, CompressIcon, CloseIcon } from '../shared/Icons'
+import PdfReorder from './PdfReorder'
+import { ConvertIcon, CropIcon, CompressIcon, CloseIcon, PdfIcon } from '../shared/Icons'
 
 export default function App(): React.ReactElement {
   const [initData, setInitData] = useState<PopupInitPayload | null>(null)
@@ -48,12 +49,23 @@ export default function App(): React.ReactElement {
 
   const getActionMeta = (action: ActionId) => {
     switch (action) {
+      case 'convert-pdf':
+        return { title: 'Arrange PDF Pages', icon: <PdfIcon size={15} strokeWidth={1.8} /> }
       case 'convert-format':
-        return { title: 'Convert Format', icon: <ConvertIcon size={15} strokeWidth={1.8} /> }
+        return {
+          title: initData.isMultiple ? 'Convert All Images' : 'Convert Format',
+          icon: <ConvertIcon size={15} strokeWidth={1.8} />
+        }
       case 'crop':
-        return { title: 'Crop Image', icon: <CropIcon size={15} strokeWidth={1.8} /> }
+        return {
+          title: initData.isMultiple ? 'Crop All Images' : 'Crop Image',
+          icon: <CropIcon size={15} strokeWidth={1.8} />
+        }
       case 'compress':
-        return { title: 'Compress Image', icon: <CompressIcon size={15} strokeWidth={1.8} /> }
+        return {
+          title: initData.isMultiple ? 'Compress All Images' : 'Compress Image',
+          icon: <CompressIcon size={15} strokeWidth={1.8} />
+        }
       default:
         return { title: 'Image Settings', icon: null }
     }
@@ -102,6 +114,9 @@ export default function App(): React.ReactElement {
 
         {/* Modal Body Container */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col">
+          {initData.action === 'convert-pdf' && (
+            <PdfReorder filePath={initData.filePath} filePaths={initData.filePaths} />
+          )}
           {initData.action === 'convert-format' && (
             <FormatPicker filePath={initData.filePath} />
           )}

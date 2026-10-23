@@ -50,3 +50,67 @@ export async function convertToPdf(inputPath: string): Promise<string> {
 
   return outputPath
 }
+
+export async function convertMultipleToPdf(inputPaths: string[], customName?: string): Promise<string> {
+  if (!inputPaths || inputPaths.length === 0) {
+    throw new Error('No images provided for PDF conversion')
+  }
+
+  const firstPath = inputPaths[0]
+  const ext = extname(firstPath).toLowerCase()
+  const base = basename(firstPath, ext)
+  const dir = dirname(firstPath)
+
+  let baseName = `${base} (${inputPaths.length} images).pdf`
+  if (customName && customName.trim()) {
+    const trimmed = customName.trim()
+    baseName = trimmed.toLowerCase().endsWith('.pdf') ? trimmed : `${trimmed}.pdf`
+  }
+
+  const extPdf = extname(baseName)
+  const rawBase = basename(baseName, extPdf)
+  let outputPath = join(dir, `${rawBase}.pdf`)
+
+  let counter = 1
+  while (existsSync(outputPath)) {
+    try {
+      const fd = openSync(outputPath, 'r+')
+      closeSync(fd)
+      break
+    } catch {
+      outputPath = join(dir, `${rawBase} (${counter}).pdf`)
+      counter++
+    }
+  }
+
+  const pdfDoc = await PDFDocument.create()
+
+  for (const imgPath of inputPaths) {
+    try {
+      const metadata = await sharp(imgPath).metadata()
+      const width = metadata.width ?? 800
+      const height = metadata.height ?? 600
+
+      const page = pdfDoc.addPage([width, height])
+      let embeddedImage
+      try {
+        const jpgBytes = await sharp(imgPath)
+          .jpeg({ quality: 95, progressive: false })
+          .toBuffer()
+        embeddedImage = await pdfDoc.embedJpg(jpgBytes)
+      } catch {
+        const pngBytes = await sharp(imgPath).png().toBuffer()
+        embeddedImage = await pdfDoc.embedPng(pngBytes)
+      }
+      page.drawImage(embeddedImage, { x: 0, y: 0, width, height })
+    } catch (err) {
+      console.warn(`[pdf] Could not embed page for ${imgPath}:`, err)
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save()
+  writeFileSync(outputPath, pdfBytes)
+  console.log(`[pdf] Successfully saved multi-page PDF: ${outputPath}`)
+
+  return outputPath
+}

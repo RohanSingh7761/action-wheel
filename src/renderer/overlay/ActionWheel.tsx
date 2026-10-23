@@ -61,6 +61,12 @@ export default function ActionWheel({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const isSubmittingRef = useRef(false)
 
+  // Multiple images selected: only show 3 buttons ("All to PDF", "Convert All", "Compress All")
+  const activeActions = triggerData.isMultiple
+    ? ACTIONS.filter((a) => a.id !== 'crop')
+    : ACTIONS
+  const totalSegments = activeActions.length
+
   const wheelSize = (OUTER_R + 16) * 2
   const halfSize = wheelSize / 2
 
@@ -75,7 +81,7 @@ export default function ActionWheel({
       const api = (window as any).overlayAPI
       if (!api) return
       try {
-        await api.selectAction({ action, filePath })
+        await api.selectAction({ action, filePath, filePaths: triggerData.filePaths })
       } catch (err) {
         console.error('selectAction error:', err)
       } finally {
@@ -84,7 +90,7 @@ export default function ActionWheel({
         }, 500)
       }
     },
-    [isProcessing]
+    [isProcessing, triggerData.filePaths]
   )
 
   // Escape or Tab key dismisses
@@ -108,10 +114,10 @@ export default function ActionWheel({
 
       if (dist >= INNER_R * 0.75 && dist <= OUTER_R + 50) {
         const rad = Math.atan2(dy, dx)
-        const segAngle = 360 / TOTAL_SEGMENTS
+        const segAngle = 360 / totalSegments
         // Offset by +segAngle/2 to align with centered segment 0 at 12 o'clock
         const deg = ((rad * 180) / Math.PI + 90 + segAngle / 2 + 360) % 360
-        return Math.floor(deg / segAngle) % TOTAL_SEGMENTS
+        return Math.floor(deg / segAngle) % totalSegments
       }
       return null
     }
@@ -126,7 +132,7 @@ export default function ActionWheel({
       e.preventDefault()
       const idx = checkAngle(e.clientX, e.clientY)
       if (idx !== null) {
-        const action = ACTIONS[idx]
+        const action = activeActions[idx]
         if (action) {
           handleSegmentClick(action.id, triggerData.filePath)
         }
@@ -219,16 +225,17 @@ export default function ActionWheel({
 
           {/* Dial Segments */}
           <g filter="url(#fluent-shadow)">
-            {ACTIONS.map((action, i) => (
+            {activeActions.map((action, i) => (
               <WheelSegment
                 key={action.id}
                 index={i}
-                total={TOTAL_SEGMENTS}
+                total={totalSegments}
                 action={action}
-                path={segmentPath(i, TOTAL_SEGMENTS, INNER_R, OUTER_R)}
-                labelPos={labelPosition(i, TOTAL_SEGMENTS)}
+                path={segmentPath(i, totalSegments, INNER_R, OUTER_R)}
+                labelPos={labelPosition(i, totalSegments)}
                 isHovered={hoveredIndex === i}
                 isProcessing={isProcessing && processingAction === action.id}
+                isMultiple={triggerData.isMultiple}
                 onHover={() => setHoveredIndex(i)}
                 onLeave={() => setHoveredIndex(null)}
               />
@@ -250,8 +257,10 @@ export default function ActionWheel({
           <CenterPreview
             thumbnail={triggerData.thumbnail}
             filePath={triggerData.filePath}
+            filePaths={triggerData.filePaths}
+            isMultiple={triggerData.isMultiple}
             isProcessing={isProcessing}
-            hoveredAction={hoveredIndex !== null ? ACTIONS[hoveredIndex] : null}
+            hoveredAction={hoveredIndex !== null ? activeActions[hoveredIndex] : null}
             onCancel={onDismiss}
           />
         </div>

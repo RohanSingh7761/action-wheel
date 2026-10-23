@@ -49,12 +49,13 @@ import {
   hidePopup
 } from './windows/popup'
 
-import { processAction } from './processor/index'
+import { processAction, processBatchAction } from './processor/index'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let tray: Tray | null = null
 let currentFilePath: string | null = null
+let currentFilePaths: string[] = []
 let currentCursorX = 0
 let currentCursorY = 0
 let pendingAction: ActionId | null = null
@@ -203,12 +204,20 @@ export async function triggerWithFilePicker(): Promise<void> {
   await triggerWheel(filePath, cursor.x, cursor.y)
 }
 
-export async function triggerWheel(filePath: string, cursorX: number, cursorY: number): Promise<void> {
+export async function triggerWheel(
+  filePath: string,
+  cursorX: number,
+  cursorY: number,
+  filePaths?: string[]
+): Promise<void> {
   currentFilePath = filePath
+  currentFilePaths = filePaths && filePaths.length > 0 ? filePaths : [filePath]
   currentCursorX = cursorX
   currentCursorY = cursorY
 
-  // Generate thumbnail
+  const isMultiple = currentFilePaths.length > 1
+
+  // Generate thumbnail from first image
   let thumbnail: string | undefined
   try {
     const thumbBuffer = await sharp(filePath)
@@ -230,6 +239,8 @@ export async function triggerWheel(filePath: string, cursorX: number, cursorY: n
 
   const payload: TriggerPayload = {
     filePath,
+    filePaths: currentFilePaths,
+    isMultiple,
     cursorX,
     cursorY,
     timestamp: Date.now(),
@@ -242,8 +253,15 @@ export async function triggerWheel(filePath: string, cursorX: number, cursorY: n
 
 function registerIpcHandlers(): void {
   // Overlay selects an action
-  ipcMain.handle(IPC.ACTION_SELECT, async (_e, { action, filePath }: ActionSelectPayload) => {
+  ipcMain.handle(IPC.ACTION_SELECT, async (_e, { action, filePath, filePaths }: ActionSelectPayload) => {
     currentFilePath = filePath
+    if (filePaths && filePaths.length > 0) {
+      currentFilePaths = filePaths
+    } else if (currentFilePaths.length === 0) {
+      currentFilePaths = [filePath]
+    }
+
+    const isMultiple = currentFilePaths.length > 1
     const meta = ACTIONS.find(a => a.id === action)
 
     // Handle copy immediately
@@ -259,7 +277,10 @@ function registerIpcHandlers(): void {
       return { needsParams: false }
     }
 
-    if (meta?.needsParams) {
+    // If PDF is selected and multiple images are selected -> open reorder popup window!
+    const needsPopup = meta?.needsParams || (action === 'convert-pdf' && isMultiple)
+
+    if (needsPopup) {
       pendingAction = action as ActionId
       currentFilePath = filePath
 
@@ -270,7 +291,12 @@ function registerIpcHandlers(): void {
       // Show popup near cursor
       const popupWin = getPopupWindow()
       if (popupWin) {
-        const initPayload: PopupInitPayload = { action, filePath }
+        const initPayload: PopupInitPayload = {
+          action: action as ActionId,
+          filePath,
+          filePaths: currentFilePaths,
+          isMultiple
+        }
         showPopup(currentCursorX, currentCursorY)
         popupWin.webContents.send(IPC.POPUP_INIT, initPayload)
         setTimeout(() => {
@@ -300,14 +326,24 @@ function registerIpcHandlers(): void {
 
     const action = pendingAction
     const filePath = currentFilePath
+    const filePaths = currentFilePaths.length > 0 ? currentFilePaths : [filePath]
     pendingAction = null
 
     try {
-      const result = await processAction(action, filePath, params)
+      let result
+      if (filePaths.length > 1 || (params && 'orderedPaths' in params)) {
+        result = await processBatchAction(action, filePaths, params)
+      } else {
+        result = await processAction(action, filePath, params)
+      }
       hideWheel()
 
       if (result.outputPath) {
-        shell.openPath(result.outputPath)
+        // Only open file automatically on single image, or when multiple images merged to single PDF
+        const isMultiple = filePaths.length > 1
+        if (!isMultiple || action === 'convert-pdf') {
+          shell.openPath(result.outputPath)
+        }
       }
     } catch (err) {
       hideWheel()
@@ -365,10 +401,13 @@ async function processImmediate(action: ActionId, filePath: string): Promise<voi
     broadcastWs({ type: 'WHEEL_CLOSED' })
 
     if (action !== 'copy' && result.outputPath) {
-      console.log(`[shell] Opening output file: ${result.outputPath}`)
-      const openErr = await shell.openPath(result.outputPath)
-      if (openErr) {
-        console.warn(`[shell] Open path warning: ${openErr}`)
+      const isMultiple = currentFilePaths.length > 1
+      if (!isMultiple || action === 'convert-pdf') {
+        console.log(`[shell] Opening output file: ${result.outputPath}`)
+        const openErr = await shell.openPath(result.outputPath)
+        if (openErr) {
+          console.warn(`[shell] Open path warning: ${openErr}`)
+        }
       }
     }
   } catch (err) {
@@ -388,6 +427,7 @@ function hideWheel(): void {
   hidePopup()
   pendingAction = null
   currentFilePath = null
+  currentFilePaths = []
   broadcastWs({ type: 'WHEEL_CLOSED' })
 }
 
@@ -442,12 +482,15 @@ function startHookServer(): Promise<number> {
           try {
             const msg = JSON.parse(raw.toString())
             if (msg.type === 'DRAG_TAB') {
-              const { filePath, cursorX, cursorY } = msg
+              const { filePath, filePaths, cursorX, cursorY } = msg
               const cur = screen.getCursorScreenPoint()
               const finalX = cur ? cur.x : cursorX
               const finalY = cur ? cur.y : cursorY
-              console.log(`[hook] Trigger from native hook: ${filePath} at (${finalX}, ${finalY})`)
-              await triggerWheel(filePath, finalX, finalY)
+              const allPaths: string[] = Array.isArray(filePaths) && filePaths.length > 0 ? filePaths : [filePath]
+              console.log(
+                `[hook] Trigger from native hook: ${filePath} (${allPaths.length} image(s)) at (${finalX}, ${finalY})`
+              )
+              await triggerWheel(filePath, finalX, finalY, allPaths)
             } else if (msg.type === 'DISMISS') {
               console.log('[hook] Dismiss request from native hook')
               hideWheel()

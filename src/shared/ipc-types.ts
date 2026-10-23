@@ -13,6 +13,7 @@ export type ActionId =
 export interface ActionMeta {
   id: ActionId
   label: string
+  multipleLabel?: string
   icon: string
   color: string
   accentColor: string
@@ -23,6 +24,7 @@ export const ACTIONS: ActionMeta[] = [
   {
     id: 'convert-pdf',
     label: 'To PDF',
+    multipleLabel: 'All to PDF',
     icon: 'pdf',
     color: '#13151b',
     accentColor: '#ffffff',
@@ -31,6 +33,7 @@ export const ACTIONS: ActionMeta[] = [
   {
     id: 'convert-format',
     label: 'Convert',
+    multipleLabel: 'Convert All',
     icon: 'convert',
     color: '#13151b',
     accentColor: '#ffffff',
@@ -39,6 +42,7 @@ export const ACTIONS: ActionMeta[] = [
   {
     id: 'crop',
     label: 'Crop',
+    multipleLabel: 'Crop All',
     icon: 'crop',
     color: '#13151b',
     accentColor: '#ffffff',
@@ -47,6 +51,7 @@ export const ACTIONS: ActionMeta[] = [
   {
     id: 'compress',
     label: 'Compress',
+    multipleLabel: 'Compress All',
     icon: 'compress',
     color: '#13151b',
     accentColor: '#ffffff',
@@ -81,6 +86,8 @@ export const IPC = {
 
 export interface TriggerPayload {
   filePath: string
+  filePaths?: string[]
+  isMultiple?: boolean
   cursorX: number
   cursorY: number
   timestamp?: number
@@ -106,6 +113,7 @@ export interface ErrorPayload {
 export interface ActionSelectPayload {
   action: ActionId
   filePath: string
+  filePaths?: string[]
 }
 
 export interface ActionSelectResult {
@@ -115,6 +123,8 @@ export interface ActionSelectResult {
 export interface PopupInitPayload {
   action: ActionId
   filePath: string
+  filePaths?: string[]
+  isMultiple?: boolean
 }
 
 export interface ConvertFormatParams {
@@ -133,7 +143,12 @@ export interface CompressParams {
   quality: number
 }
 
-export type PopupParams = ConvertFormatParams | CropParams | CompressParams
+export interface PdfReorderParams {
+  orderedPaths: string[]
+  outputName?: string
+}
+
+export type PopupParams = ConvertFormatParams | CropParams | CompressParams | PdfReorderParams
 
 export interface PopupConfirmPayload {
   params: PopupParams

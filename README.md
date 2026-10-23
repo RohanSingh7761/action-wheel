@@ -17,11 +17,11 @@
 <br />
 
 <p align="center">
-  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.1.exe">
+  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.2.exe">
     <img src="https://img.shields.io/badge/Download_Installer-Windows_64--bit_(.exe)-6366f1?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Installer" height="38">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.1.exe">
+  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.2.exe">
     <img src="https://img.shields.io/badge/Download_Portable-Standalone_(.exe)-374151?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Exe" height="38">
   </a>
 </p>
@@ -57,8 +57,8 @@ You can get Action Wheel as either a **standard Windows installer** or a **porta
 
 | Package | Description | Direct Download |
 | :--- | :--- | :--- |
-| **Windows Installer** | Installs to `%LOCALAPPDATA%`, creates Start Menu shortcut, supports auto-updates and clean uninstaller. | [⬇️ **Download Installer (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.1.exe) |
-| **Portable Version** | Single standalone `.exe` you can put in any folder or USB drive. Run directly without installation. | [📦 **Download Portable (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.1.exe) |
+| **Windows Installer** | Installs to `%LOCALAPPDATA%`, creates Start Menu shortcut, supports auto-updates and clean uninstaller. | [⬇️ **Download Installer (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.2.exe) |
+| **Portable Version** | Single standalone `.exe` you can put in any folder or USB drive. Run directly without installation. | [📦 **Download Portable (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.2.exe) |
 
 > [!NOTE]
 > All releases and changelogs are also hosted on the [GitHub Releases Page](https://github.com/RohanSingh7761/action-wheel/releases).
@@ -89,7 +89,7 @@ When you first run the downloaded `.exe`, Windows Defender SmartScreen may displ
 └─────────────────────────────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ App:    Action-Wheel-Setup-1.0.1.exe                        │
+│ App:    Action-Wheel-Setup-1.0.2.exe                        │
 │ Publisher: Unknown publisher                                │
 │                                                             │
 │ [ Run anyway ] <── Click here             [ Don't run ]     │
@@ -251,8 +251,8 @@ To compile both the **NSIS Installer** and **Standalone Portable Executable**:
 npm run build:win
 ```
 The resulting executables will be output to the `dist/` directory:
-- `dist/Action-Wheel-Setup-1.0.1.exe` (Installer)
-- `dist/Action-Wheel-1.0.1.exe` (Portable)
+- `dist/Action-Wheel-Setup-1.0.2.exe` (Installer)
+- `dist/Action-Wheel-1.0.2.exe` (Portable)
 
 ---
 
