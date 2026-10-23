@@ -68,7 +68,9 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
   // Placed signature state
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null)
   const [placedPos, setPlacedPos] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+  const [isSelected, setIsSelected] = useState<boolean>(true)
   const [aspectRatio, setAspectRatio] = useState<number>(2.5)
+  const [zoom, setZoom] = useState<number>(1.0)
 
   // Dragging / Resizing placed signature
   const [interaction, setInteraction] = useState<'none' | 'move' | 'resize'>('none')
@@ -82,12 +84,15 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
   const [hasDrawn, setHasDrawn] = useState(false)
 
   const pageContainerRef = useRef<HTMLDivElement | null>(null)
+  const viewportRef = useRef<HTMLDivElement | null>(null)
 
   // Reset when filePath changes
   useEffect(() => {
     let isMounted = true
     setSignatureDataUrl(null)
     setPlacedPos(null)
+    setIsSelected(true)
+    setZoom(1.0)
     setHasDrawn(false)
     setIsSubmitting(false)
     setLoading(true)
@@ -110,6 +115,25 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
       isMounted = false
     }
   }, [filePath])
+
+  // Touchpad pinch-to-zoom (wheel events with ctrlKey)
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault()
+        const zoomDelta = e.deltaY < 0 ? 0.08 : -0.08
+        setZoom((prev) => Math.min(3.0, Math.max(0.5, Number((prev + zoomDelta).toFixed(2)))))
+      }
+    }
+
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', handleWheel)
+    }
+  }, [loading])
 
   // Setup drawing canvas
   useEffect(() => {
@@ -222,9 +246,16 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
     }
   }, [tab, typedName, selectedFont, sigColor])
 
-  // Click on PDF Page to place signature
+  // Click on PDF Page to place signature or deselect if already placed
   const handlePageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!signatureDataUrl || placedPos) return
+    if (!signatureDataUrl || isSubmitting) return
+
+    // If signature is already placed, clicking anywhere else on page deselects it!
+    if (placedPos) {
+      setIsSelected(false)
+      return
+    }
+
     const container = pageContainerRef.current
     if (!container) return
     const rect = container.getBoundingClientRect()
@@ -233,21 +264,23 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
     const clickY = e.clientY - rect.top
 
     // Snug bounding box based on natural aspect ratio
-    const sigW = 130
+    const sigW = Math.round(Math.min(180, Math.max(90, rect.width * 0.35)))
     const sigH = Math.round(sigW / (aspectRatio || 2.5))
 
     setPlacedPos({
       x: Math.max(0, Math.min(clickX - sigW / 2, rect.width - sigW)),
       y: Math.max(0, Math.min(clickY - sigH / 2, rect.height - sigH)),
       width: sigW,
-      height: Math.max(30, sigH)
+      height: Math.max(25, sigH)
     })
+    setIsSelected(true)
   }
 
   // Start moving placed signature
   const handleMoveStart = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!placedPos) return
+    setIsSelected(true)
     setInteraction('move')
     setDragOffset({
       x: e.clientX - placedPos.x,
@@ -259,6 +292,7 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
   const handleResizeStart = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!placedPos) return
+    setIsSelected(true)
     setInteraction('resize')
     setResizeStart({
       startX: e.clientX,
@@ -346,90 +380,148 @@ export default function PdfSignModal({ filePath }: PdfSignModalProps): React.Rea
       <div className="flex gap-5 flex-1">
         {/* Left: Document Page Preview */}
         <div className="flex-[1.25] flex flex-col items-center justify-between bg-black/50 rounded-2xl p-4 border border-white/[0.08] shadow-inner">
-          {/* Page Switcher Header */}
+          {/* Page Switcher Header & Zoom Controls */}
           <div className="w-full flex items-center justify-between pb-3 mb-2 border-b border-white/[0.06]">
-            <span className="text-xs font-mono text-zinc-300 font-medium">
-              Page {currentPage} of {pages.length}
-            </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-zinc-300 font-medium">
+                Page {currentPage} of {pages.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="w-6 h-6 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] disabled:opacity-20 text-xs text-white flex items-center justify-center transition-colors"
+                >
+                  ‹
+                </button>
+                <button
+                  disabled={currentPage >= pages.length}
+                  onClick={() => setCurrentPage((p) => Math.min(pages.length, p + 1))}
+                  className="w-6 h-6 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] disabled:opacity-20 text-xs text-white flex items-center justify-center transition-colors"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/[0.06]">
               <button
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="w-7 h-7 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] disabled:opacity-20 text-xs text-white flex items-center justify-center transition-colors"
+                onClick={() => setZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))}
+                className="w-5 h-5 rounded-md hover:bg-white/10 text-xs text-zinc-300 font-bold flex items-center justify-center transition-colors"
+                title="Zoom Out"
               >
-                ‹
+                -
               </button>
               <button
-                disabled={currentPage >= pages.length}
-                onClick={() => setCurrentPage((p) => Math.min(pages.length, p + 1))}
-                className="w-7 h-7 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] disabled:opacity-20 text-xs text-white flex items-center justify-center transition-colors"
+                onClick={() => setZoom(1.0)}
+                className="px-1.5 py-0.5 text-[10px] font-mono text-zinc-300 hover:text-white transition-colors"
+                title="Reset Zoom"
               >
-                ›
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.min(2.5, Math.round((z + 0.25) * 100) / 100))}
+                className="w-5 h-5 rounded-md hover:bg-white/10 text-xs text-zinc-300 font-bold flex items-center justify-center transition-colors"
+                title="Zoom In"
+              >
+                +
               </button>
             </div>
           </div>
 
-          {/* Rendered Page Viewport */}
+          {/* Rendered Page Viewport with Zoom and Touchpad Pinch */}
           <div
-            ref={pageContainerRef}
-            onClick={handlePageClick}
-            className={`relative max-h-[360px] aspect-[1/1.4] bg-white rounded-md shadow-2xl overflow-hidden ${
-              signatureDataUrl && !placedPos ? 'cursor-crosshair ring-2 ring-indigo-500/50' : 'cursor-default'
-            }`}
+            ref={viewportRef}
+            className="w-full flex-1 flex justify-center items-start overflow-auto max-h-[380px] rounded-xl"
           >
-            <img
-              src={activePage.dataUrl}
-              alt="PDF Page"
-              className="w-full h-full object-contain pointer-events-none"
-            />
+            {(() => {
+              const baseHeight = 350
+              const pageAspect = (activePage.width || 1) / (activePage.height || 1.414)
+              const baseWidth = Math.round(baseHeight * pageAspect)
+              const displayWidth = Math.round(baseWidth * zoom)
+              const displayHeight = Math.round(baseHeight * zoom)
 
-            {/* Prompt tooltip banner */}
-            {signatureDataUrl && !placedPos && (
-              <div className="absolute inset-x-0 bottom-3 flex justify-center pointer-events-none">
-                <span className="px-4 py-1.5 rounded-full bg-indigo-600/90 text-white text-[11px] font-semibold shadow-xl backdrop-blur-md animate-pulse">
-                  Click on page to stamp signature
-                </span>
-              </div>
-            )}
-
-            {/* Placed signature box with move & resize */}
-            {placedPos && signatureDataUrl && (
-              <div
-                onMouseDown={handleMoveStart}
-                style={{
-                  left: placedPos.x,
-                  top: placedPos.y,
-                  width: placedPos.width,
-                  height: placedPos.height
-                }}
-                className="absolute border-2 border-indigo-500 rounded bg-indigo-500/10 cursor-move group select-none shadow-xl"
-              >
-                <img
-                  src={signatureDataUrl}
-                  alt="Signature Stamp"
-                  className="w-full h-full object-contain pointer-events-none"
-                />
-
-                {/* Remove button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setPlacedPos(null)
-                  }}
-                  className="absolute -top-3 -right-3 w-5 h-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow-lg hover:bg-red-500 transition-colors cursor-pointer"
-                  title="Remove"
-                >
-                  ×
-                </button>
-
-                {/* Corner Resize Handle */}
+              return (
                 <div
-                  onMouseDown={handleResizeStart}
-                  className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-indigo-500 border border-white cursor-se-resize shadow-md"
-                  title="Drag to resize"
-                />
-              </div>
-            )}
+                  ref={pageContainerRef}
+                  onClick={handlePageClick}
+                  style={{
+                    width: `${displayWidth}px`,
+                    height: `${displayHeight}px`
+                  }}
+                  className={`relative bg-white rounded-md shadow-2xl overflow-hidden select-none flex-shrink-0 ${
+                    signatureDataUrl && !placedPos ? 'cursor-crosshair ring-2 ring-indigo-500/50' : 'cursor-default'
+                  }`}
+                >
+                  <img
+                    src={activePage.dataUrl}
+                    alt="PDF Page"
+                    className="w-full h-full block pointer-events-none select-none"
+                  />
+
+                  {/* Prompt tooltip banner */}
+                  {signatureDataUrl && !placedPos && (
+                    <div className="absolute inset-x-0 bottom-3 flex justify-center pointer-events-none">
+                      <span className="px-4 py-1.5 rounded-full bg-indigo-600/90 text-white text-[11px] font-semibold shadow-xl backdrop-blur-md animate-pulse">
+                        Click on page to stamp signature
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Placed signature box with move & resize */}
+                  {placedPos && signatureDataUrl && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setIsSelected(true)
+                      }}
+                      onMouseDown={handleMoveStart}
+                      style={{
+                        left: placedPos.x,
+                        top: placedPos.y,
+                        width: placedPos.width,
+                        height: placedPos.height
+                      }}
+                      className={`absolute rounded cursor-move group select-none transition-all ${
+                        isSelected
+                          ? 'border-2 border-indigo-500 bg-indigo-500/10 shadow-xl'
+                          : 'border border-transparent hover:border-indigo-400/40'
+                      }`}
+                    >
+                      <img
+                        src={signatureDataUrl}
+                        alt="Signature Stamp"
+                        className="w-full h-full object-contain pointer-events-none select-none"
+                      />
+
+                      {/* Remove button (only when selected) */}
+                      {isSelected && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPlacedPos(null)
+                          }}
+                          className="absolute -top-3 -right-3 w-5 h-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow-lg hover:bg-red-500 transition-colors cursor-pointer"
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                      )}
+
+                      {/* Corner Resize Handle (only when selected) */}
+                      {isSelected && (
+                        <div
+                          onMouseDown={handleResizeStart}
+                          className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-indigo-500 border border-white cursor-se-resize shadow-md"
+                          title="Drag to resize"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         </div>
 

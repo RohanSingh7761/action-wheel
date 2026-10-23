@@ -11,9 +11,9 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
   const [pages, setPages] = useState<PageDetail[]>([])
   const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set())
 
-  // Visual Range Picker inputs
-  const [rangeFrom, setRangeFrom] = useState<number>(1)
-  const [rangeTo, setRangeTo] = useState<number>(1)
+  // Visual Range Picker inputs (string state allows free typing/backspacing without snapback)
+  const [rangeFromInput, setRangeFromInput] = useState<string>('1')
+  const [rangeToStr, setRangeToStr] = useState<string>('1')
 
   // Last clicked page for Shift+Click multi-selection
   const [lastClickedPage, setLastClickedPage] = useState<number | null>(null)
@@ -33,7 +33,8 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
         if (result && isMounted) {
           setTotalPages(result.pageCount)
           setPages(result.pages || [])
-          setRangeTo(result.pageCount)
+          setRangeFromInput('1')
+          setRangeToStr(String(result.pageCount))
           // Default: select all pages
           const all = new Set<number>()
           for (let i = 1; i <= result.pageCount; i++) all.add(i)
@@ -74,27 +75,58 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
     }
   }
 
+  // Live range update reflecting immediately in selected checkboxes
+  const updateRangeLive = (fromVal: string, toVal: string) => {
+    setRangeFromInput(fromVal)
+    setRangeToStr(toVal)
+
+    const fromNum = parseInt(fromVal, 10)
+    const toNum = parseInt(toVal, 10)
+
+    if (!isNaN(fromNum) && !isNaN(toNum) && fromNum >= 1 && toNum >= 1) {
+      const clampedFrom = Math.min(Math.max(1, fromNum), totalPages)
+      const clampedTo = Math.min(Math.max(1, toNum), totalPages)
+      const min = Math.min(clampedFrom, clampedTo)
+      const max = Math.max(clampedFrom, clampedTo)
+      const nextSet = new Set<number>()
+      for (let p = min; p <= max; p++) {
+        nextSet.add(p)
+      }
+      setSelectedPages(nextSet)
+    }
+  }
+
+  const handleBlurFrom = () => {
+    const num = parseInt(rangeFromInput, 10)
+    if (isNaN(num) || num < 1) {
+      updateRangeLive('1', rangeToStr)
+    } else if (num > totalPages) {
+      updateRangeLive(String(totalPages), rangeToStr)
+    }
+  }
+
+  const handleBlurTo = () => {
+    const num = parseInt(rangeToStr, 10)
+    if (isNaN(num) || num < 1) {
+      updateRangeLive(rangeFromInput, String(totalPages))
+    } else if (num > totalPages) {
+      updateRangeLive(rangeFromInput, String(totalPages))
+    }
+  }
+
   // Range Presets
   const selectAll = () => {
     const all = new Set<number>()
     for (let i = 1; i <= totalPages; i++) all.add(i)
     setSelectedPages(all)
+    setRangeFromInput('1')
+    setRangeToStr(String(totalPages))
   }
 
   const clearAll = () => {
     setSelectedPages(new Set())
-  }
-
-  const selectOdd = () => {
-    const s = new Set<number>()
-    for (let i = 1; i <= totalPages; i += 2) s.add(i)
-    setSelectedPages(s)
-  }
-
-  const selectEven = () => {
-    const s = new Set<number>()
-    for (let i = 2; i <= totalPages; i += 2) s.add(i)
-    setSelectedPages(s)
+    setRangeFromInput('')
+    setRangeToStr('')
   }
 
   const selectFirstHalf = () => {
@@ -102,6 +134,8 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
     const s = new Set<number>()
     for (let i = 1; i <= mid; i++) s.add(i)
     setSelectedPages(s)
+    setRangeFromInput('1')
+    setRangeToStr(String(mid))
   }
 
   const selectSecondHalf = () => {
@@ -109,20 +143,8 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
     const s = new Set<number>()
     for (let i = mid; i <= totalPages; i++) s.add(i)
     setSelectedPages(s)
-  }
-
-  // Apply Range Button
-  const applyRange = () => {
-    const from = Math.max(1, Math.min(rangeFrom, totalPages))
-    const to = Math.max(1, Math.min(rangeTo, totalPages))
-    const min = Math.min(from, to)
-    const max = Math.max(from, to)
-
-    setSelectedPages((prev) => {
-      const next = new Set(prev)
-      for (let p = min; p <= max; p++) next.add(p)
-      return next
-    })
+    setRangeFromInput(String(mid))
+    setRangeToStr(String(totalPages))
   }
 
   const handleExtract = async () => {
@@ -183,41 +205,41 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
 
         {/* Visual Range Picker & Preset Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-black/40 p-2.5 rounded-2xl border border-white/[0.06]">
-          {/* Range Picker */}
+          {/* Range Picker with Live Checkbox Update */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-400 font-medium">Range:</span>
             <span className="text-[11px] text-zinc-500">From</span>
             <input
-              type="number"
-              min={1}
-              max={totalPages}
-              value={rangeFrom}
-              onChange={(e) => setRangeFrom(Math.max(1, parseInt(e.target.value) || 1))}
+              type="text"
+              inputMode="numeric"
+              value={rangeFromInput}
+              onChange={(e) => {
+                const clean = e.target.value.replace(/[^0-9]/g, '')
+                updateRangeLive(clean, rangeToStr)
+              }}
+              onBlur={handleBlurFrom}
+              placeholder="1"
               className="w-14 px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.1] text-xs text-white text-center font-mono focus:outline-none focus:border-indigo-500"
             />
             <span className="text-[11px] text-zinc-500">to</span>
             <input
-              type="number"
-              min={1}
-              max={totalPages}
-              value={rangeTo}
-              onChange={(e) => setRangeTo(Math.max(1, parseInt(e.target.value) || totalPages))}
+              type="text"
+              inputMode="numeric"
+              value={rangeToStr}
+              onChange={(e) => {
+                const clean = e.target.value.replace(/[^0-9]/g, '')
+                updateRangeLive(rangeFromInput, clean)
+              }}
+              onBlur={handleBlurTo}
+              placeholder={String(totalPages)}
               className="w-14 px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.1] text-xs text-white text-center font-mono focus:outline-none focus:border-indigo-500"
             />
-            <button
-              onClick={applyRange}
-              className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer shadow-sm shadow-indigo-600/30"
-            >
-              Select Range
-            </button>
           </div>
 
-          {/* Quick Preset Chips */}
+          {/* Quick Preset Chips (Odd and Even removed) */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {[
               { label: 'All', fn: selectAll },
-              { label: 'Odd', fn: selectOdd },
-              { label: 'Even', fn: selectEven },
               { label: '1st Half', fn: selectFirstHalf },
               { label: '2nd Half', fn: selectSecondHalf },
               { label: 'Clear', fn: clearAll }
@@ -225,7 +247,7 @@ export default function PdfSplitModal({ filePath }: PdfSplitModalProps): React.R
               <button
                 key={p.label}
                 onClick={p.fn}
-                className="px-2.5 py-1 rounded-lg text-[10.5px] font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                className="px-2.5 py-1 rounded-lg text-[10.5px] font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white transition-colors cursor-pointer active:scale-95"
               >
                 {p.label}
               </button>

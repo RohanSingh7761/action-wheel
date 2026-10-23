@@ -52,6 +52,7 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const viewportRef = useRef<HTMLDivElement | null>(null)
 
   // Reset all progress when filePath changes or on fresh mount
   useEffect(() => {
@@ -81,6 +82,25 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
       isMounted = false
     }
   }, [filePath])
+
+  // Touchpad pinch-to-zoom (wheel events with ctrlKey)
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault()
+        const zoomDelta = e.deltaY < 0 ? 0.08 : -0.08
+        setZoom((prev) => Math.min(3.0, Math.max(0.5, Number((prev + zoomDelta).toFixed(2)))))
+      }
+    }
+
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', handleWheel)
+    }
+  }, [loading])
 
   // Keyboard shortcut to delete selected annotation
   useEffect(() => {
@@ -142,21 +162,26 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
 
   // Mouse Down on Page
   const handlePageMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    const container = containerRef.current
-    if (!container || !activePageDetail) return
-    const rect = container.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / zoom
-    const y = (e.clientY - rect.top) / zoom
-
-    if (tool === 'select') {
+    // If an annotation is already selected, clicking on empty page deselects it
+    if (selectedId) {
       setSelectedId(null)
       return
     }
 
-    if (tool === 'text') {
-      const scaleX = activePageDetail.width / (rect.width / zoom)
-      const scaleY = activePageDetail.height / (rect.height / zoom)
+    if (tool === 'select') {
+      return
+    }
 
+    const container = containerRef.current
+    if (!container || !activePageDetail) return
+    const rect = container.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    const scaleX = activePageDetail.width / rect.width
+    const scaleY = activePageDetail.height / rect.height
+
+    if (tool === 'text') {
       const newId = Math.random().toString(36).substring(2, 9)
       const newAnnotation: EditorAnnotation = {
         id: newId,
@@ -171,7 +196,6 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
       setAnnotations((prev) => [...prev, newAnnotation])
       setSelectedId(newId)
     } else {
-      setSelectedId(null)
       setDragStart({ x, y })
       setDragCurrent({ x, y })
       setInteractionMode('draw')
@@ -183,14 +207,14 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
     const container = containerRef.current
     if (!container || !activePageDetail) return
     const rect = container.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / zoom
-    const y = (e.clientY - rect.top) / zoom
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
 
     if (interactionMode === 'draw' && dragStart) {
       setDragCurrent({ x, y })
     } else if (interactionMode === 'move' && moveStartPos && selectedId) {
-      const scaleX = activePageDetail.width / (rect.width / zoom)
-      const scaleY = activePageDetail.height / (rect.height / zoom)
+      const scaleX = activePageDetail.width / rect.width
+      const scaleY = activePageDetail.height / rect.height
       const dx = (x - moveStartPos.startX) * scaleX
       const dy = (y - moveStartPos.startY) * scaleY
 
@@ -206,8 +230,8 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
         )
       )
     } else if (interactionMode === 'resize' && moveStartPos && selectedId) {
-      const scaleX = activePageDetail.width / (rect.width / zoom)
-      const scaleY = activePageDetail.height / (rect.height / zoom)
+      const scaleX = activePageDetail.width / rect.width
+      const scaleY = activePageDetail.height / rect.height
       const dx = (x - moveStartPos.startX) * scaleX
       const dy = (y - moveStartPos.startY) * scaleY
 
@@ -235,8 +259,8 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
       const height = Math.abs(dragCurrent.y - dragStart.y)
 
       if (width > 5 && height > 5) {
-        const scaleX = activePageDetail.width / (rect.width / zoom)
-        const scaleY = activePageDetail.height / (rect.height / zoom)
+        const scaleX = activePageDetail.width / rect.width
+        const scaleY = activePageDetail.height / rect.height
 
         const newId = Math.random().toString(36).substring(2, 9)
         const newAnnotation: EditorAnnotation = {
@@ -265,8 +289,8 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
     setSelectedId(ann.id)
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / zoom
-    const y = (e.clientY - rect.top) / zoom
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
 
     setMoveStartPos({
       startX: x,
@@ -285,8 +309,8 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
     setSelectedId(ann.id)
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / zoom
-    const y = (e.clientY - rect.top) / zoom
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
 
     setMoveStartPos({
       startX: x,
@@ -493,42 +517,50 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
           </div>
         )}
 
-        {/* Scrollable Viewport with Zoom */}
-        <div className="w-full flex justify-center bg-black/60 rounded-2xl p-4 border border-white/[0.08] overflow-auto max-h-[380px] shadow-inner">
-          <div
-            ref={containerRef}
-            onMouseDown={handlePageMouseDown}
-            onMouseMove={handlePageMouseMove}
-            onMouseUp={handlePageMouseUp}
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top center',
-              transition: interactionMode === 'none' ? 'transform 0.15s ease-out' : 'none'
-            }}
-            className={`relative max-h-[340px] aspect-[1/1.4] bg-white rounded-md shadow-2xl overflow-hidden select-none ${
-              tool === 'select' ? 'cursor-default' : 'cursor-crosshair'
-            }`}
-          >
-            <img
-              src={activePageDetail.dataUrl}
-              alt="Page render"
-              className="w-full h-full object-contain pointer-events-none"
-            />
+        {/* Scrollable Viewport with Zoom & Touchpad Pinch */}
+        <div
+          ref={viewportRef}
+          className="w-full flex justify-center items-start bg-black/60 rounded-2xl p-4 border border-white/[0.08] overflow-auto max-h-[390px] shadow-inner"
+        >
+          {(() => {
+            const baseHeight = 350
+            const pageAspect = (activePageDetail.width || 1) / (activePageDetail.height || 1.414)
+            const baseWidth = Math.round(baseHeight * pageAspect)
+            const displayWidth = Math.round(baseWidth * zoom)
+            const displayHeight = Math.round(baseHeight * zoom)
 
-            {/* Saved Annotations */}
-            {containerRef.current &&
-              pageAnnotations.map((ann) => {
-                const rect = containerRef.current!.getBoundingClientRect()
-                const containerW = rect.width / zoom
-                const containerH = rect.height / zoom
-                const scaleX = containerW / activePageDetail.width
-                const scaleY = containerH / activePageDetail.height
+            return (
+              <div
+                ref={containerRef}
+                onMouseDown={handlePageMouseDown}
+                onMouseMove={handlePageMouseMove}
+                onMouseUp={handlePageMouseUp}
+                style={{
+                  width: `${displayWidth}px`,
+                  height: `${displayHeight}px`
+                }}
+                className={`relative bg-white rounded-md shadow-2xl overflow-hidden select-none flex-shrink-0 ${
+                  tool === 'select' ? 'cursor-default' : 'cursor-crosshair'
+                }`}
+              >
+                <img
+                  src={activePageDetail.dataUrl}
+                  alt="Page render"
+                  className="w-full h-full block pointer-events-none select-none"
+                />
 
-                const left = ann.x * scaleX
-                const top = ann.y * scaleY
-                const width = (ann.width || 0) * scaleX
-                const height = (ann.height || 0) * scaleY
-                const isSelected = selectedId === ann.id
+                {/* Saved Annotations */}
+                {containerRef.current &&
+                  pageAnnotations.map((ann) => {
+                    const rect = containerRef.current!.getBoundingClientRect()
+                    const scaleX = rect.width / activePageDetail.width
+                    const scaleY = rect.height / activePageDetail.height
+
+                    const left = ann.x * scaleX
+                    const top = ann.y * scaleY
+                    const width = (ann.width || 0) * scaleX
+                    const height = (ann.height || 0) * scaleY
+                    const isSelected = selectedId === ann.id
 
                 if (ann.type === 'text') {
                   return (
@@ -638,7 +670,9 @@ export default function PdfEditModal({ filePath }: PdfEditModalProps): React.Rea
                 className="absolute border-2 border-indigo-500 pointer-events-none"
               />
             )}
-          </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
 

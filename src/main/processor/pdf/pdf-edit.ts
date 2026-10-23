@@ -85,7 +85,7 @@ export async function editPdf(filePath: string, params: PdfEditParams): Promise<
       const text = ann.text || ''
       if (!text.trim()) continue
       const fontSize = ann.fontSize || 14
-      const pdfY = pHeight - y - fontSize
+      const pdfY = pHeight - y - Math.round(fontSize * 0.82)
       const textColor = hexToRgb(ann.color)
 
       page.drawText(text, {
