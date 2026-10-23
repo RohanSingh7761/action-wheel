@@ -1,7 +1,7 @@
 {
   "name": "action-wheel",
-  "version": "1.0.2",
-  "description": "Global Windows image action wheel",
+  "version": "2.0.0",
+  "description": "Global Windows radial document & image action wheel",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

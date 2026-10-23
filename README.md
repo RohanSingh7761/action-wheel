@@ -2,8 +2,8 @@
 
 <div align="center">
 
-**A production-grade, lightning-fast radial image utility for Windows 10 & 11.**  
-*Drag or select any image, press <kbd>Tab</kbd>, and execute high-speed image workflows right under your cursor.*
+**A production-grade, lightning-fast radial document & image action wheel for Windows 10 & 11.**  
+*Drag or select any document (PDF) or image, press <kbd>Tab</kbd>, and execute high-speed workflows right under your cursor.*
 
 [![GitHub Release](https://img.shields.io/github/v/release/RohanSingh7761/action-wheel?style=flat-square&color=6366f1&label=Release)](https://github.com/RohanSingh7761/action-wheel/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10_%2F_11_(x64)-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
@@ -11,17 +11,16 @@
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Sharp](https://img.shields.io/badge/Sharp-0.33.5_(libvips)-99CC00?style=flat-square&logo=node.js&logoColor=white)](https://sharp.pixelplumbing.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 <br />
 
 <p align="center">
-  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.2.exe">
+  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-2.0.0.exe">
     <img src="https://img.shields.io/badge/Download_Installer-Windows_64--bit_(.exe)-6366f1?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Installer" height="38">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.2.exe">
+  <a href="https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-2.0.0.exe">
     <img src="https://img.shields.io/badge/Download_Portable-Standalone_(.exe)-374151?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Exe" height="38">
   </a>
 </p>
@@ -40,14 +39,14 @@
 
 ## 🌟 Overview
 
-**Action Wheel** runs quietly in your Windows background. Whenever you start dragging an image file or have an image selected on your Desktop or in File Explorer, pressing <kbd>Tab</kbd> instantly projects a high-performance, dark-glass radial wheel anchored directly to your cursor coordinates. 
+**Action Wheel** runs quietly in your Windows background. Whenever you start dragging a PDF document or image file, or have files selected on your Desktop or in File Explorer, pressing <kbd>Tab</kbd> instantly projects a high-performance, dark-glass radial wheel anchored directly to your cursor coordinates.
 
-Hover over a segment and release your mouse to execute instant document conversions, format interchanges, interactive photo crops, or lossy/lossless compressions.
+Hover over a segment and release your mouse to execute native document editing, signing, splitting, merging, encryption/decryption, format conversions, or photo crops:
 
 - **Zero Clutter:** No windows open until you want them.
-- **Microsecond Response:** Built on libvips multi-threaded image processing.
+- **Microsecond Response:** Built on in-process PDF rendering and multi-threaded libvips image processing.
 - **Native Precision:** Seamlessly detects active files across Windows Desktop and File Explorer via Shell Automation.
-- **False-Positive Free:** Native ahead-of-time compiled C# Win32 background listener that bypasses Windows AMSI and third-party antivirus heuristic blocks.
+- **False-Positive Free:** Native ahead-of-time compiled C# Win32 background listener that bypasses Windows AMSI and antivirus heuristics.
 
 ---
 
@@ -57,8 +56,8 @@ You can get Action Wheel as either a **standard Windows installer** or a **porta
 
 | Package | Description | Direct Download |
 | :--- | :--- | :--- |
-| **Windows Installer** | Installs to `%LOCALAPPDATA%`, creates Start Menu shortcut, supports auto-updates and clean uninstaller. | [⬇️ **Download Installer (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-1.0.2.exe) |
-| **Portable Version** | Single standalone `.exe` you can put in any folder or USB drive. Run directly without installation. | [📦 **Download Portable (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-1.0.2.exe) |
+| **Windows Installer** | Installs to `%LOCALAPPDATA%`, creates Start Menu shortcut, supports auto-updates and clean uninstaller. | [⬇️ **Download Installer (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-Setup-2.0.0.exe) |
+| **Portable Version** | Single standalone `.exe` you can put in any folder or USB drive. Run directly without installation. | [📦 **Download Portable (.exe)**](https://github.com/RohanSingh7761/action-wheel/releases/latest/download/Action-Wheel-2.0.0.exe) |
 
 > [!NOTE]
 > All releases and changelogs are also hosted on the [GitHub Releases Page](https://github.com/RohanSingh7761/action-wheel/releases).
@@ -67,7 +66,7 @@ You can get Action Wheel as either a **standard Windows installer** or a **porta
 
 ### 🛡️ Windows SmartScreen & Antivirus Guide
 
-Because Action Wheel is a free, community-driven open-source project, the executable is not signed with an enterprise EV (Extended Validation) code signing certificate (which costs hundreds of dollars annually).
+Because Action Wheel is a free, community-driven open-source project, the executable is not signed with an enterprise EV code signing certificate.
 
 #### 1. Windows Defender SmartScreen
 When you first run the downloaded `.exe`, Windows Defender SmartScreen may display:
@@ -89,55 +88,76 @@ When you first run the downloaded `.exe`, Windows Defender SmartScreen may displ
 └─────────────────────────────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ App:    Action-Wheel-Setup-1.0.2.exe                        │
+│ App:    Action-Wheel-Setup-2.0.0.exe                        │
 │ Publisher: Unknown publisher                                │
 │                                                             │
 │ [ Run anyway ] <── Click here             [ Don't run ]     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### 2. Antivirus (McAfee, Norton, Defender)
-Earlier experimental versions of the drag detector relied on dynamic PowerShell scripts (`powershell.exe -ExecutionPolicy Bypass`), which heuristic antivirus scanners (like McAfee AMSI) occasionally flagged as suspicious script activity.
-
-**In v1.0.0, this is completely solved:**
-- We eliminated all runtime PowerShell script generation.
-- The background hook is compiled ahead-of-time into a clean, 15 KB native Win32 executable (`resources/drag-listener.exe`).
-- All code is 100% open-source and auditable right here in the repository.
-
 ---
 
 ## ✨ Features
 
-### 📄 To PDF *(Top)*
-- Instantly packages the target image into a single-page vector PDF document using `pdf-lib` and `sharp`.
-- Saves the output PDF right alongside the source file with non-destructive naming and automatically launches it in your default system viewer.
+### 📑 Document Workflows (PDF)
 
-### 🔄 Format Conversion *(Right)*
-- Effortlessly transcode images across modern formats: **WebP**, **PNG**, **JPG**, **AVIF**, and **TIFF**.
-- Fine-tuned encoding quality slider with automatic lossless handling for PNG outputs.
-- Displays destination filename and size previews in real time.
+When a PDF document is selected or dragged, Action Wheel projects a tailored 5-segment radial wheel:
 
-### ✂️ Interactive Visual Crop *(Bottom)*
-- Displays the image inside an interactive canvas with **draggable and resizable 8-point bounding handles**.
-- Interactive rule-of-thirds composition grid with dark background masking.
-- Proportional **Aspect Ratio Presets**: **Freeform**, **1:1 Square**, **16:9 Wide**, and **4:3 Standard**.
-- Calculates sub-pixel coordinates mapped back to the original image's full resolution.
+- **✏️ Edit PDF:**
+  - Mark up documents with **Highlight**, **Redact**, **Whiteout**, and **Text** tools.
+  - Interactive **Select/Move/Resize** mode: click any placed element to reposition or resize with corner handles.
+  - Live text synchronization: typing in the toolbar updates text on the document in real time.
+  - Comprehensive color palette with native color picker and font size selector.
+  - Smooth viewport zoom controls (`-`, `100%`, `+`) and laptop **touchpad pinch-to-zoom gestures**.
+  - Cancelling instantly wipes progress and cleanly closes the session.
 
-### 🗜️ Smart Image Compression *(Left)*
-- One-click tactile presets: **High (90%)**, **Balanced (75%)**, **Small (50%)**, and **Tiny (30%)**.
-- Precision quality slider with live estimated file size reduction metrics (e.g. `~35%`, `~55%`, `~75%`).
+- **🖋️ Sign PDF:**
+  - Create signatures by drawing on a canvas or typing your name in elegant cursive fonts.
+  - Pixel-aligned drawing pointer aligns dead-center on the cursor crosshair.
+  - Auto-crops canvas whitespace to create snug, tight bounding boxes.
+  - Interactive placement: click on the page to stamp your signature, then drag to reposition or pull the corner handle to resize.
+  - Click outside to cleanly deselect and preview the signed document.
+  - Touchpad pinch-to-zoom support for micro-precise placement.
 
-### 🛡️ Smart Gesture Protection
-- **Single-Image Only:** If multiple files are selected or dragged simultaneously, Action Wheel remains dormant to prevent accidental batch processing.
-- **Image-Only Filtering:** Non-image files (videos, documents, archives) are automatically filtered out.
-- **Zero-Latency Dismissal:** Releasing outside the wheel, clicking the center cancel pill, or pressing <kbd>Esc</kbd> or <kbd>Tab</kbd> dismisses the wheel instantly without modifying your filesystem.
+- **✂️ Split & Extract Pages:**
+  - Visual grid of page thumbnails with non-clipping hover selection rings.
+  - Flexible numeric range input (*From X to Y*) with live checkbox synchronization as you type.
+  - Quick preset chips (*1st Half*, *2nd Half*, *All*, *Clear*) and Shift-Click multi-range selection.
+
+- **📑 Merge PDFs (Multiple PDFs selected):**
+  - Fluid drag-and-drop reordering powered by Framer Motion.
+  - Quick-sort controls and custom output combined document naming.
+
+- **🔒 Protect & Unlock (Dynamic Wheel Action):**
+  - Instant AES-256 password encryption and decryption.
+  - **Wheel-Aware:** Inspects PDF lock status instantly—displays **Unlock** with an open lock icon for password-protected files, and **Protect** with a locked icon for unprotected documents.
+
+- **🖼️ PDF to Images:**
+  - Convert document pages into crisp PNG images.
+  - Smart organization: automatically creates a dedicated subfolder when converting documents with more than 10 pages.
+  - Multi-PDF batching converts each selected document into its own distinct folder.
 
 ---
 
-## 🎨 Design Philosophy
+### 🖼️ Image Workflows
 
-Inspired by the restraint of **Raycast**, the precision of **Linear**, and **Windows 11 Fluent Design**:
-- **Controlled Translucent Surfaces:** Deep obsidian graphite bases (`rgba(14, 16, 21, 0.96)`) paired with subtle acrylic materials and fine hairline borders (`rgba(255, 255, 255, 0.08)`).
+When an image is selected or dragged, Action Wheel projects high-speed image operations:
+
+- **📄 To PDF:** Single image to PDF or batch multiple image combination with drag reordering.
+- **🔄 Format Conversion:** Transcode between **WebP**, **PNG**, **JPG**, **AVIF**, and **TIFF** with quality controls.
+- **✂️ Interactive Crop:** 8-point resizable crop handles, rule-of-thirds grid, and aspect ratio presets (**Freeform**, **1:1**, **16:9**, **4:3**).
+- **🗜️ Image Compression:** Real-time size reduction estimates and one-click presets (**High**, **Balanced**, **Small**, **Tiny**).
+
+---
+
+## 📖 How to Use
+
+1. Launch Action Wheel (it runs quietly in your background and system tray).
+2. **Trigger the Wheel:**
+   - **Method A (Drag gesture):** Click and hold any document or image file, drag slightly, and press <kbd>Tab</kbd>.
+   - **Method B (Selection):** Select any document or image file in File Explorer or on your Desktop and tap <kbd>Tab</kbd>.
+3. Hover your cursor over the desired wheel segment and release to open the tool or execute immediately.
+4. Tap <kbd>Esc</kbd> or <kbd>Tab</kbd> at any point to dismiss without performing any action.
 - **Multi-Layer Depth Shadows:** Dual-pass drop shadows that guarantee readability over bright, dark, or busy wallpapers.
 - **Precision Iconography:** Pure vector SVG line icons designed with uniform `1.75` stroke weights — zero emoji bloat or mismatched iconography.
 - **Snappy Motion Design:** Tight `0.14s` easing curves with zero spring jitter or latency during active dragging operations.
@@ -251,8 +271,8 @@ To compile both the **NSIS Installer** and **Standalone Portable Executable**:
 npm run build:win
 ```
 The resulting executables will be output to the `dist/` directory:
-- `dist/Action-Wheel-Setup-1.0.2.exe` (Installer)
-- `dist/Action-Wheel-1.0.2.exe` (Portable)
+- `dist/Action-Wheel-Setup-2.0.0.exe` (Installer)
+- `dist/Action-Wheel-2.0.0.exe` (Portable)
 
 ---
 

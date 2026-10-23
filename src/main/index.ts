@@ -140,7 +140,7 @@ function showStartupNotification(): void {
     if (Notification.isSupported()) {
       const notif = new Notification({
         title: 'Action Wheel is Ready',
-        body: 'Running in your system tray. Drag any image and press Tab to activate.',
+        body: 'Running in your system tray. Select or drag any document or image and press Tab to activate.',
         icon: getAppIconPath(),
         silent: false
       })
@@ -195,9 +195,9 @@ export async function triggerDemoWheel(): Promise<void> {
 
 export async function triggerWithFilePicker(): Promise<void> {
   const result = await dialog.showOpenDialog({
-    title: 'Select Image for Action Wheel',
+    title: 'Select Document or Image for Action Wheel',
     filters: [
-      { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'avif', 'svg'] }
+      { name: 'Documents & Images', extensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'avif', 'svg'] }
     ],
     properties: ['openFile']
   })
