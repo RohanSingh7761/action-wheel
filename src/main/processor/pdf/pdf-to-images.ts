@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join, dirname, basename, extname } from 'path'
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { createCanvas } from '@napi-rs/canvas'
 import type { PdfToImagesParams } from '../../shared/ipc-types'
 import { getStandardFontsUrl } from './pdf-preview'
+import { getPdfjs } from './pdfjs-loader'
 
 function getUniqueDir(baseDir: string, folderName: string): string {
   let target = join(baseDir, folderName)
@@ -33,6 +33,8 @@ export async function pdfToImages(
   const fileBytes = readFileSync(filePath)
   const dir = dirname(filePath)
   const base = basename(filePath, extname(filePath))
+
+  const pdfjs = await getPdfjs()
 
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(fileBytes),

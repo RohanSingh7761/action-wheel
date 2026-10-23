@@ -1,8 +1,8 @@
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { createCanvas } from '@napi-rs/canvas'
 import { isEncrypted } from '@pdfsmaller/pdf-decrypt'
+import { getPdfjs } from './pdfjs-loader'
 
 export interface PdfPageDetail {
   pageNumber: number
@@ -44,6 +44,8 @@ export async function loadPdfDetails(filePath: string, maxPages = 50): Promise<P
       pages: []
     }
   }
+
+  const pdfjs = await getPdfjs()
 
   // Load document with standard fonts
   const loadingTask = pdfjs.getDocument({
